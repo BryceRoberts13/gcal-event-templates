@@ -10,6 +10,25 @@ const TITLE_LABELS = [
 const LOCATION_LABELS = ["Add location", "Location"];
 const DESCRIPTION_LABELS = ["Description", "Add description"];
 
+/** Classic GCal event color ids 1–11 → palette names shown in the UI. */
+const COLOR_NAMES: Record<GcalColorId, string> = {
+  "1": "Lavender",
+  "2": "Sage",
+  "3": "Grape",
+  "4": "Flamingo",
+  "5": "Banana",
+  "6": "Tangerine",
+  "7": "Peacock",
+  "8": "Graphite",
+  "9": "Blueberry",
+  "10": "Basil",
+  "11": "Tomato",
+};
+
+const COLOR_NAME_TO_ID = Object.fromEntries(
+  Object.entries(COLOR_NAMES).map(([id, name]) => [name.toLowerCase(), id as GcalColorId]),
+) as Record<string, GcalColorId>;
+
 export function isTitleInput(element: Element | null): element is HTMLInputElement {
   if (!(element instanceof HTMLInputElement)) {
     return false;
@@ -95,35 +114,126 @@ function setDescription(
   setContentEditableText(field, value);
 }
 
-function applyColor(root: ParentNode, colorId: GcalColorId): void {
-  const swatch = root.querySelector(`[data-color-id="${colorId}"]`);
-  if (swatch instanceof HTMLElement) {
-    swatch.click();
-    swatch.setAttribute("aria-pressed", "true");
-    root.querySelectorAll("[data-color-id]").forEach((node) => {
-      if (node !== swatch) {
-        node.removeAttribute("aria-pressed");
+function findColorSwatch(
+  root: ParentNode,
+  colorId: GcalColorId,
+): HTMLElement | null {
+  const name = COLOR_NAMES[colorId];
+  const selectors = [
+    `[data-color-id="${colorId}"]`,
+    `[data-color-index="${colorId}"]`,
+    `[data-colorid="${colorId}"]`,
+    `div[role="menuitemradio"][aria-label="${name}"]`,
+    `button[aria-label="${name}"]`,
+    `[aria-label="${name}"]`,
+    `[aria-label*="${name}" i]`,
+  ];
+
+  for (const selector of selectors) {
+    try {
+      const match = root.querySelector(selector);
+      if (match instanceof HTMLElement) {
+        return match;
       }
-    });
+    } catch {
+      // Invalid selector in this environment — skip.
+    }
+  }
+
+  // Scan interactive nodes by accessible name (palette menus often lack data-color-id).
+  const candidates = root.querySelectorAll(
+    'button, [role="button"], [role="menuitemradio"], [role="option"], [role="menuitem"]',
+  );
+  for (const node of candidates) {
+    if (!(node instanceof HTMLElement)) {
+      continue;
+    }
+    const label = (node.getAttribute("aria-label") ?? node.textContent ?? "")
+      .trim()
+      .toLowerCase();
+    if (label === name.toLowerCase() || label.includes(name.toLowerCase())) {
+      return node;
+    }
+  }
+
+  return null;
+}
+
+function findColorPickerButton(root: ParentNode): HTMLElement | null {
+  const selectors = [
+    'button[aria-label*="event color" i]',
+    'button[aria-label*="calendar color" i]',
+    'div[role="button"][aria-label*="event color" i]',
+    'div[role="button"][aria-label*="calendar color" i]',
+    'button[aria-label*="color" i]',
+    'div[role="button"][aria-label*="color" i]',
+  ];
+  for (const selector of selectors) {
+    const match = root.querySelector(selector);
+    if (match instanceof HTMLElement) {
+      return match;
+    }
+  }
+
+  // Heuristic: colored chip near calendar name select in the details pane.
+  const chips = Array.from(root.querySelectorAll("button, div[role='button']")).filter(
+    (el) => {
+      if (!(el instanceof HTMLElement)) {
+        return false;
+      }
+      const style = el.getAttribute("style") ?? "";
+      const hasBg =
+        /background(-color)?:\s*(rgb|#)/i.test(style) ||
+        el.querySelector('[style*="background"]') !== null;
+      const label = (el.getAttribute("aria-label") ?? "").toLowerCase();
+      return hasBg || label.includes("color");
+    },
+  );
+  return (chips[0] as HTMLElement | undefined) ?? null;
+}
+
+function clickSwatch(swatch: HTMLElement): void {
+  swatch.click();
+  swatch.setAttribute("aria-pressed", "true");
+  swatch.setAttribute("aria-checked", "true");
+}
+
+function applyColor(root: ParentNode, colorId: GcalColorId): void {
+  const immediate = findColorSwatch(root, colorId) ?? findColorSwatch(document, colorId);
+  if (immediate) {
+    clickSwatch(immediate);
     return;
   }
 
-  const colorButton = root.querySelector(
-    'button[aria-label*="color" i], button[aria-label*="Color" i], div[aria-label*="calendar color" i]',
-  );
-  if (!(colorButton instanceof HTMLElement)) {
-    console.warn("[gcal-event-templates] color control not found");
+  const colorButton = findColorPickerButton(root) ?? findColorPickerButton(document);
+  if (!colorButton) {
+    // Best-effort: title/description/location already applied. Don't spam Errors.
+    console.debug("[gcal-event-templates] color control not found; skipped color", colorId);
     return;
   }
+
   colorButton.click();
-  window.setTimeout(() => {
-    const paletteSwatch = document.querySelector(`[data-color-id="${colorId}"]`);
-    if (paletteSwatch instanceof HTMLElement) {
-      paletteSwatch.click();
-    } else {
-      console.warn("[gcal-event-templates] color swatch not found for", colorId);
+
+  const tryPick = (attempt: number): void => {
+    const palette =
+      findColorSwatch(document, colorId) ??
+      findColorSwatch(root, colorId);
+    if (palette) {
+      clickSwatch(palette);
+      return;
     }
-  }, 50);
+    if (attempt < 8) {
+      window.setTimeout(() => tryPick(attempt + 1), 60);
+      return;
+    }
+    console.debug(
+      "[gcal-event-templates] color swatch not found for",
+      colorId,
+      COLOR_NAMES[colorId],
+    );
+  };
+
+  window.setTimeout(() => tryPick(0), 40);
 }
 
 export function applyTemplate(
@@ -172,14 +282,35 @@ export function extractTemplateFromSurface(
   const surface = findEventSurface(titleInput) ?? document.body;
   const description = findDescriptionField(surface);
   const location = findInputByLabels(surface, LOCATION_LABELS);
-  const pressed = surface.querySelector("[data-color-id][aria-pressed='true']");
-  const colorIdAttr = pressed?.getAttribute("data-color-id") ?? undefined;
+
+  const pressed =
+    surface.querySelector("[data-color-id][aria-pressed='true'], [data-color-index][aria-pressed='true'], [aria-checked='true']") ??
+    document.querySelector("[data-color-id][aria-pressed='true'], [data-color-index][aria-pressed='true'], [aria-checked='true']");
+
+  let colorId: GcalColorId | undefined;
+  if (pressed instanceof HTMLElement) {
+    const idAttr =
+      pressed.getAttribute("data-color-id") ??
+      pressed.getAttribute("data-color-index") ??
+      pressed.getAttribute("data-colorid");
+    if (idAttr && idAttr in COLOR_NAMES) {
+      colorId = idAttr as GcalColorId;
+    } else {
+      const label = (pressed.getAttribute("aria-label") ?? "").toLowerCase();
+      for (const [name, id] of Object.entries(COLOR_NAME_TO_ID)) {
+        if (label.includes(name)) {
+          colorId = id;
+          break;
+        }
+      }
+    }
+  }
 
   return {
     name: titleInput.value.trim() || "Untitled template",
     description: readFieldText(description) || undefined,
     location: location?.value.trim() || undefined,
-    colorId: colorIdAttr as GcalColorId | undefined,
+    colorId,
   };
 }
 

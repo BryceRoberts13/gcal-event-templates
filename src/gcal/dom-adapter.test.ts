@@ -53,7 +53,20 @@ describe("dom-adapter", () => {
     expect(
       (document.querySelector('input[aria-label="Add location"]') as HTMLInputElement).value,
     ).toBe("Z Center");
-    expect(document.querySelector('[data-color-id="10"][aria-pressed="true"]')).not.toBeNull();
+    expect(document.querySelector('[aria-label="Basil"][aria-pressed="true"]')).not.toBeNull();
+  });
+
+  it("applyTemplate prefers color names when data-color-id is absent", () => {
+    const input = document.querySelector('input[aria-label="Title"]') as HTMLInputElement;
+    applyTemplate(input, {
+      id: "t2",
+      name: "Focus",
+      colorId: "9",
+      updatedAt: 0,
+    });
+    expect(
+      document.querySelector('[aria-label="Blueberry"][aria-pressed="true"]'),
+    ).not.toBeNull();
   });
 
   it("extractTemplateFromSurface reads current fields", () => {
