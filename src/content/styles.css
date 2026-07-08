@@ -1,0 +1,43 @@
+/* Combobox styles — scoped to extension-owned elements only */
+
+.gcet-combobox {
+  position: relative;
+  width: 100%;
+}
+
+.gcet-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 10000;
+  margin: 4px 0 0;
+  padding: 4px 0;
+  list-style: none;
+  background: #fff;
+  border: 1px solid #dadce0;
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(60, 64, 67, 0.15);
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.gcet-dropdown-item {
+  padding: 8px 12px;
+  cursor: pointer;
+  font: 14px/20px "Google Sans", Roboto, Arial, sans-serif;
+}
+
+.gcet-dropdown-item[aria-selected="true"],
+.gcet-dropdown-item:hover {
+  background: #e8f0fe;
+}
+
+.gcet-dropdown-item-name {
+  color: #3c4043;
+}
+
+.gcet-dropdown-item-hint {
+  color: #5f6368;
+  font-size: 12px;
+}
