@@ -12,7 +12,14 @@ async function attachCombobox(titleInput: HTMLInputElement): Promise<void> {
     return;
   }
 
-  const templates = await listTemplates();
+  let templates;
+  try {
+    templates = await listTemplates();
+  } catch (error) {
+    console.error("[gcal-event-templates] failed to load templates", error);
+    return;
+  }
+
   console.info(
     "[gcal-event-templates] mounting combobox with",
     templates.length,
@@ -47,11 +54,20 @@ watchForEventTitleInputs((titleInput) => {
 
 watchForSaveTemplateControl();
 
-chrome.storage.onChanged.addListener((changes, area) => {
-  if (area !== "sync" || !changes.templateStore) {
-    return;
+const storage = globalThis.chrome?.storage;
+if (storage?.onChanged) {
+  storage.onChanged.addListener((changes, area) => {
+    if ((area !== "sync" && area !== "local") || !changes.templateStore) {
+      return;
+    }
+    remountAll();
+  });
+}
+
+chrome.runtime.onMessage.addListener((message) => {
+  if (message?.type === "gcet/store-changed") {
+    remountAll();
   }
-  remountAll();
 });
 
 console.info("[gcal-event-templates] content script ready");

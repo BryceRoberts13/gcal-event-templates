@@ -11,14 +11,19 @@ const storage: Record<string, unknown> = {};
 
 beforeEach(() => {
   Object.keys(storage).forEach((k) => delete storage[k]);
+  const area = {
+    get: vi.fn(async (key: string) => ({ [key]: storage[key] })),
+    set: vi.fn(async (obj: Record<string, unknown>) =>
+      Object.assign(storage, obj),
+    ),
+  };
   vi.stubGlobal("chrome", {
     storage: {
-      sync: {
-        get: vi.fn(async (key: string) => ({ [key]: storage[key] })),
-        set: vi.fn(async (obj: Record<string, unknown>) =>
-          Object.assign(storage, obj),
-        ),
-      },
+      sync: area,
+      local: area,
+    },
+    runtime: {
+      sendMessage: vi.fn(),
     },
   });
 });

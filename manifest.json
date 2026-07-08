@@ -1,10 +1,14 @@
 {
   "manifest_version": 3,
   "name": "Google Calendar Event Templates",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Searchable event templates in Google Calendar's create-event title field",
   "permissions": ["storage"],
   "host_permissions": ["https://calendar.google.com/*"],
+  "background": {
+    "service_worker": "src/background/service-worker.ts",
+    "type": "module"
+  },
   "options_ui": {
     "page": "src/options/options.html",
     "open_in_tab": true
