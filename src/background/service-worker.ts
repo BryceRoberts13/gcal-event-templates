@@ -1,20 +1,54 @@
-import type { TemplateStore } from "../types";
+import { DEFAULT_TEMPLATES, type TemplateStore } from "../types";
 import { STORAGE_KEY } from "../store/storage";
 
 type Message =
   | { type: "gcet/get-store" }
   | { type: "gcet/set-store"; store: TemplateStore };
 
-async function getStore(): Promise<TemplateStore | undefined> {
-  const area = chrome.storage.sync ?? chrome.storage.local;
-  const result = await area.get(STORAGE_KEY);
-  return result[STORAGE_KEY] as TemplateStore | undefined;
+function storageArea(): chrome.storage.StorageArea {
+  const area = chrome.storage?.sync ?? chrome.storage?.local;
+  if (!area) {
+    throw new Error("chrome.storage is missing in service worker");
+  }
+  return area;
+}
+
+async function getStore(): Promise<TemplateStore> {
+  const result = await storageArea().get(STORAGE_KEY);
+  const stored = result[STORAGE_KEY] as TemplateStore | undefined;
+
+  if (!stored || stored.schemaVersion !== 1 || !Array.isArray(stored.templates) || stored.templates.length === 0) {
+    const seeded: TemplateStore = {
+      schemaVersion: 1,
+      templates: DEFAULT_TEMPLATES.map((template) => ({
+        ...template,
+        updatedAt: Date.now(),
+      })),
+    };
+    await storageArea().set({ [STORAGE_KEY]: seeded });
+    return seeded;
+  }
+
+  return stored;
 }
 
 async function setStore(store: TemplateStore): Promise<void> {
-  const area = chrome.storage.sync ?? chrome.storage.local;
-  await area.set({ [STORAGE_KEY]: store });
+  await storageArea().set({ [STORAGE_KEY]: store });
+  // Notify open Calendar tabs so comboboxes remount with fresh data.
+  const tabs = await chrome.tabs.query({ url: "https://calendar.google.com/*" });
+  for (const tab of tabs) {
+    if (tab.id == null) {
+      continue;
+    }
+    void chrome.tabs.sendMessage(tab.id, { type: "gcet/store-changed" }).catch(() => undefined);
+  }
 }
+
+chrome.runtime.onInstalled.addListener(() => {
+  void getStore().then(() => {
+    console.info("[gcal-event-templates] defaults ensured on install");
+  });
+});
 
 chrome.runtime.onMessage.addListener((message: Message, _sender, sendResponse) => {
   if (message?.type === "gcet/get-store") {
@@ -44,4 +78,4 @@ chrome.runtime.onMessage.addListener((message: Message, _sender, sendResponse) =
   return false;
 });
 
-console.info("[gcal-event-templates] service worker ready");
+console.info("[gcal-event-templates] service worker ready (v0.3.0)");

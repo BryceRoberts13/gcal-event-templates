@@ -4,36 +4,10 @@ import {
   type EventTemplate,
   type TemplateStore,
 } from "../types";
-import {
-  STORAGE_KEY,
-  loadStoreViaMessaging,
-  saveStoreViaMessaging,
-  storageGet,
-  storageSet,
-} from "./storage";
-
-async function readStore(): Promise<TemplateStore | undefined> {
-  try {
-    const result = await storageGet(STORAGE_KEY);
-    return result[STORAGE_KEY] as TemplateStore | undefined;
-  } catch {
-    return (await loadStoreViaMessaging()) ?? undefined;
-  }
-}
-
-async function writeStore(store: TemplateStore): Promise<void> {
-  try {
-    await storageSet({ [STORAGE_KEY]: store });
-  } catch {
-    const ok = await saveStoreViaMessaging(store);
-    if (!ok) {
-      throw new Error("Unable to persist templates (chrome.storage unavailable)");
-    }
-  }
-}
+import { readPersistedStore, writePersistedStore } from "./storage";
 
 export async function loadTemplateStore(): Promise<TemplateStore> {
-  const stored = await readStore();
+  const stored = await readPersistedStore();
 
   if (!stored || stored.schemaVersion !== 1) {
     return seedDefaultStore();
@@ -47,7 +21,7 @@ export async function loadTemplateStore(): Promise<TemplateStore> {
 }
 
 export async function saveTemplateStore(store: TemplateStore): Promise<void> {
-  await writeStore(store);
+  await writePersistedStore(store);
 }
 
 async function seedDefaultStore(): Promise<TemplateStore> {
