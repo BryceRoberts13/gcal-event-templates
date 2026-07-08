@@ -1,9 +1,21 @@
 import { searchTemplates } from "../search/template-search";
 import type { EventTemplate } from "../types";
 
-const COMBOBOX_CLASS = "gcet-combobox";
 const DROPDOWN_CLASS = "gcet-dropdown";
 const ITEM_CLASS = "gcet-dropdown-item";
+
+function matchesForQuery(
+  templates: EventTemplate[],
+  query: string,
+): EventTemplate[] {
+  const filtered = searchTemplates(templates, query);
+  // If the field already has a one-off title (no template match), still show
+  // the full list so the user can pick a template to overwrite.
+  if (filtered.length === 0 && query.trim().length > 0) {
+    return searchTemplates(templates, "");
+  }
+  return filtered;
+}
 
 export function mountTemplateCombobox(
   titleInput: HTMLInputElement,
@@ -15,21 +27,26 @@ export function mountTemplateCombobox(
   }
   titleInput.dataset.gcetMounted = "true";
 
-  const wrapper = document.createElement("div");
-  wrapper.className = COMBOBOX_CLASS;
-  titleInput.parentNode?.insertBefore(wrapper, titleInput);
-  wrapper.appendChild(titleInput);
-
+  // Do NOT wrap GCal's input — React owns that tree. Overlay the dropdown on body.
   const dropdown = document.createElement("ul");
   dropdown.className = DROPDOWN_CLASS;
   dropdown.hidden = true;
   dropdown.setAttribute("role", "listbox");
-  wrapper.appendChild(dropdown);
+  document.body.appendChild(dropdown);
 
   let activeIndex = -1;
 
+  const positionDropdown = () => {
+    const rect = titleInput.getBoundingClientRect();
+    dropdown.style.position = "fixed";
+    dropdown.style.left = `${rect.left}px`;
+    dropdown.style.top = `${rect.bottom + 4}px`;
+    dropdown.style.width = `${Math.max(rect.width, 280)}px`;
+    dropdown.style.zIndex = "2147483646";
+  };
+
   const render = () => {
-    const matches = searchTemplates(templates, titleInput.value);
+    const matches = matchesForQuery(templates, titleInput.value);
     dropdown.replaceChildren();
     activeIndex = -1;
 
@@ -61,13 +78,13 @@ export function mountTemplateCombobox(
     }
 
     dropdown.hidden = matches.length === 0;
+    if (!dropdown.hidden) {
+      positionDropdown();
+    }
   };
 
   const open = () => {
     render();
-    if (!dropdown.hidden) {
-      dropdown.hidden = false;
-    }
   };
 
   const close = () => {
@@ -83,11 +100,14 @@ export function mountTemplateCombobox(
     activeIndex = (activeIndex + delta + items.length) % items.length;
     items.forEach((item, index) => {
       item.setAttribute("aria-selected", index === activeIndex ? "true" : "false");
+      if (index === activeIndex) {
+        (item as HTMLElement).scrollIntoView({ block: "nearest" });
+      }
     });
   };
 
   const selectActive = () => {
-    const matches = searchTemplates(templates, titleInput.value);
+    const matches = matchesForQuery(templates, titleInput.value);
     const template = matches[activeIndex];
     if (template) {
       onSelect(template);
@@ -96,8 +116,12 @@ export function mountTemplateCombobox(
   };
 
   const onFocus = () => open();
+  const onClick = () => open();
   const onInput = () => open();
   const onKeyDown = (event: KeyboardEvent) => {
+    if (dropdown.hidden && (event.key === "ArrowDown" || event.key === "ArrowUp")) {
+      open();
+    }
     if (dropdown.hidden) {
       return;
     }
@@ -119,24 +143,34 @@ export function mountTemplateCombobox(
   };
   const onBlur = () => {
     window.setTimeout(() => {
-      if (!wrapper.contains(document.activeElement)) {
+      if (!dropdown.contains(document.activeElement) && document.activeElement !== titleInput) {
         close();
       }
-    }, 120);
+    }, 150);
+  };
+  const onScrollOrResize = () => {
+    if (!dropdown.hidden) {
+      positionDropdown();
+    }
   };
 
   titleInput.addEventListener("focus", onFocus);
+  titleInput.addEventListener("click", onClick);
   titleInput.addEventListener("input", onInput);
   titleInput.addEventListener("keydown", onKeyDown);
   titleInput.addEventListener("blur", onBlur);
+  window.addEventListener("scroll", onScrollOrResize, true);
+  window.addEventListener("resize", onScrollOrResize);
 
   return () => {
     titleInput.removeEventListener("focus", onFocus);
+    titleInput.removeEventListener("click", onClick);
     titleInput.removeEventListener("input", onInput);
     titleInput.removeEventListener("keydown", onKeyDown);
     titleInput.removeEventListener("blur", onBlur);
+    window.removeEventListener("scroll", onScrollOrResize, true);
+    window.removeEventListener("resize", onScrollOrResize);
     delete titleInput.dataset.gcetMounted;
-    wrapper.parentNode?.insertBefore(titleInput, wrapper);
-    wrapper.remove();
+    dropdown.remove();
   };
 }

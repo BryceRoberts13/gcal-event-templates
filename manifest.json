@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Google Calendar Event Templates",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Searchable event templates in Google Calendar's create-event title field",
   "permissions": ["storage"],
   "host_permissions": ["https://calendar.google.com/*"],

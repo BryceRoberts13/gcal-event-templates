@@ -15,6 +15,10 @@ export async function loadTemplateStore(): Promise<TemplateStore> {
     return seedDefaultStore();
   }
 
+  if (!Array.isArray(stored.templates) || stored.templates.length === 0) {
+    return seedDefaultStore();
+  }
+
   return stored;
 }
 
@@ -74,4 +78,8 @@ export async function importStoreJson(raw: string): Promise<void> {
     throw new Error("Invalid template store JSON");
   }
   await saveTemplateStore(parsed);
+}
+
+export async function resetToDefaultTemplates(): Promise<TemplateStore> {
+  return seedDefaultStore();
 }

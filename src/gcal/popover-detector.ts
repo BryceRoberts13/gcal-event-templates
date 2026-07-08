@@ -20,14 +20,31 @@ export function watchForEventTitleInputs(onTitleInput: TitleInputHandler): () =>
   const observer = new MutationObserver((mutations) => {
     for (const mutation of mutations) {
       mutation.addedNodes.forEach((node) => {
-        if (node instanceof HTMLElement) {
-          scan(node);
+        if (node instanceof HTMLElement || node instanceof DocumentFragment) {
+          scan(node as ParentNode);
         }
       });
+      if (mutation.type === "attributes" && mutation.target instanceof HTMLInputElement) {
+        if (isTitleInput(mutation.target) && !seen.has(mutation.target)) {
+          seen.add(mutation.target);
+          onTitleInput(mutation.target);
+        }
+      }
     }
   });
 
-  observer.observe(document.body, { childList: true, subtree: true });
+  observer.observe(document.documentElement, {
+    childList: true,
+    subtree: true,
+    attributes: true,
+    attributeFilter: ["aria-label", "placeholder"],
+  });
 
-  return () => observer.disconnect();
+  // GCal is a SPA; re-scan periodically for late-mounted title fields.
+  const intervalId = window.setInterval(() => scan(document), 1500);
+
+  return () => {
+    observer.disconnect();
+    window.clearInterval(intervalId);
+  };
 }

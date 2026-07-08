@@ -56,4 +56,12 @@ export const DEFAULT_TEMPLATES: EventTemplate[] = [
     colorId: "7",
     updatedAt: 0,
   },
+  {
+    id: "default-family",
+    name: "See family",
+    keywords: ["g", "dad", "parents"],
+    description: "Catch up / hangout.",
+    colorId: "4",
+    updatedAt: 0,
+  },
 ];

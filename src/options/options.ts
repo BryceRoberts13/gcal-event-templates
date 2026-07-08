@@ -4,6 +4,7 @@ import {
   deleteTemplate,
   exportStoreJson,
   importStoreJson,
+  resetToDefaultTemplates,
 } from "../store/template-store";
 import type { EventTemplate, GcalColorId } from "../types";
 
@@ -13,6 +14,7 @@ const templateForm = document.getElementById("template-form") as HTMLFormElement
 const addBtn = document.getElementById("add-template") as HTMLButtonElement;
 const exportBtn = document.getElementById("export-json") as HTMLButtonElement;
 const importBtn = document.getElementById("import-json") as HTMLButtonElement;
+const resetBtn = document.getElementById("reset-defaults") as HTMLButtonElement;
 const importFileInput = document.getElementById("import-file") as HTMLInputElement;
 const cancelBtn = document.getElementById("cancel-edit") as HTMLButtonElement;
 
@@ -131,6 +133,18 @@ exportBtn.onclick = async () => {
 };
 
 importBtn.onclick = () => importFileInput.click();
+
+resetBtn.onclick = async () => {
+  if (
+    !confirm(
+      "Replace all templates with the built-in defaults (Focus block, Gym, 1:1, See family)?",
+    )
+  ) {
+    return;
+  }
+  await resetToDefaultTemplates();
+  await renderList();
+};
 
 importFileInput.onchange = async (e) => {
   const file = (e.target as HTMLInputElement).files?.[0];

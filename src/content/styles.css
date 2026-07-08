@@ -1,24 +1,16 @@
-/* Combobox styles — scoped to extension-owned elements only */
-
-.gcet-combobox {
-  position: relative;
-  width: 100%;
-}
+/* Combobox + Save-as-template UI — scoped to extension-owned elements only */
 
 .gcet-dropdown {
-  position: absolute;
-  top: 100%;
-  left: 0;
-  right: 0;
-  z-index: 10000;
-  margin: 4px 0 0;
+  position: fixed;
+  z-index: 2147483646;
+  margin: 0;
   padding: 4px 0;
   list-style: none;
   background: #fff;
   border: 1px solid #dadce0;
   border-radius: 8px;
   box-shadow: 0 4px 16px rgba(60, 64, 67, 0.15);
-  max-height: 240px;
+  max-height: 280px;
   overflow-y: auto;
 }
 
@@ -40,4 +32,73 @@
 .gcet-dropdown-item-hint {
   color: #5f6368;
   font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 360px;
+}
+
+.gcet-save-split {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 4px;
+  vertical-align: middle;
+}
+
+.gcet-save-caret {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 36px;
+  height: 36px;
+  padding: 0 8px;
+  border: none;
+  border-radius: 18px;
+  background: #1a73e8;
+  color: #fff;
+  cursor: pointer;
+  font: 13px/18px "Google Sans", Roboto, Arial, sans-serif;
+}
+
+.gcet-save-caret:hover {
+  background: #1765cc;
+}
+
+.gcet-save-menu {
+  min-width: 180px;
+  padding: 6px 0;
+  background: #fff;
+  border: 1px solid #dadce0;
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(60, 64, 67, 0.2);
+}
+
+.gcet-save-menu-item {
+  display: block;
+  width: 100%;
+  padding: 10px 14px;
+  border: none;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  font: 14px/20px "Google Sans", Roboto, Arial, sans-serif;
+  color: #3c4043;
+}
+
+.gcet-save-menu-item:hover {
+  background: #e8f0fe;
+}
+
+.gcet-toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 2147483647;
+  padding: 10px 16px;
+  border-radius: 8px;
+  background: #323232;
+  color: #fff;
+  font: 13px/18px Roboto, Arial, sans-serif;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
 }

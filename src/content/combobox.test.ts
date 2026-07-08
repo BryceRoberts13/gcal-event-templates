@@ -32,6 +32,15 @@ describe("mountTemplateCombobox", () => {
     expect(dropdown!.textContent).toContain("Gym");
   });
 
+  it("shows all templates when current title matches nothing", () => {
+    input.value = "See G and Dad";
+    mountTemplateCombobox(input, templates, vi.fn());
+    input.dispatchEvent(new Event("focus"));
+
+    const dropdown = document.querySelector(".gcet-dropdown");
+    expect(dropdown!.querySelectorAll(".gcet-dropdown-item")).toHaveLength(2);
+  });
+
   it("calls onSelect when Enter pressed on highlighted item", () => {
     const onSelect = vi.fn();
     mountTemplateCombobox(input, templates, onSelect);
