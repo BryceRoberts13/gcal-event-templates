@@ -62,3 +62,16 @@ export async function deleteTemplate(id: string): Promise<void> {
 export function createEmptyStore(): TemplateStore {
   return structuredClone(EMPTY_STORE);
 }
+
+export async function exportStoreJson(): Promise<string> {
+  const store = await loadTemplateStore();
+  return JSON.stringify(store, null, 2);
+}
+
+export async function importStoreJson(raw: string): Promise<void> {
+  const parsed = JSON.parse(raw) as TemplateStore;
+  if (parsed.schemaVersion !== 1 || !Array.isArray(parsed.templates)) {
+    throw new Error("Invalid template store JSON");
+  }
+  await saveTemplateStore(parsed);
+}

@@ -2,28 +2,65 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <title>Event Templates</title>
-    <style>
-      body {
-        font-family: system-ui, sans-serif;
-        max-width: 720px;
-        margin: 2rem auto;
-        padding: 0 1rem;
-        color: #202124;
-      }
-      h1 { font-size: 1.5rem; }
-      .notice {
-        padding: 12px 16px;
-        background: #e8f0fe;
-        border-radius: 8px;
-        margin: 1rem 0;
-      }
-    </style>
+    <title>Event Templates Options</title>
+    <link rel="stylesheet" href="options.css" />
   </head>
   <body>
-    <h1>Event Templates</h1>
-    <p class="notice">Options UI coming in the next implementation pass. Default templates ship on first use.</p>
+    <header>
+      <h1>Event Templates</h1>
+      <div class="toolbar">
+        <button id="add-template" class="primary">Add Template</button>
+        <button id="export-json">Export</button>
+        <button id="import-json">Import</button>
+        <input type="file" id="import-file" class="hidden" accept=".json" />
+      </div>
+    </header>
+
+    <div id="editor-overlay" class="hidden">
+      <form id="template-form">
+        <input type="hidden" id="field-id" />
+        <div class="form-group">
+          <label for="field-name">Template Name</label>
+          <input type="text" id="field-name" required placeholder="e.g. Focus block" />
+        </div>
+        <div class="form-group">
+          <label for="field-keywords">Keywords (comma separated)</label>
+          <input type="text" id="field-keywords" placeholder="e.g. focus, deep work" />
+        </div>
+        <div class="form-group">
+          <label for="field-description">Description</label>
+          <textarea id="field-description" rows="3"></textarea>
+        </div>
+        <div class="form-group">
+          <label for="field-location">Location</label>
+          <input type="text" id="field-location" />
+        </div>
+        <div class="form-group">
+          <label for="field-color">Calendar Color</label>
+          <select id="field-color">
+            <option value="">Default color</option>
+            <option value="1">Lavender (1)</option>
+            <option value="2">Sage (2)</option>
+            <option value="3">Grape (3)</option>
+            <option value="4">Flamingo (4)</option>
+            <option value="5">Banana (5)</option>
+            <option value="6">Tangerine (6)</option>
+            <option value="7">Peacock (7)</option>
+            <option value="8">Graphite (8)</option>
+            <option value="9">Blueberry (9)</option>
+            <option value="10">Basil (10)</option>
+            <option value="11">Tomato (11)</option>
+          </select>
+        </div>
+        <div class="form-actions">
+          <button type="button" id="cancel-edit">Cancel</button>
+          <button type="submit" class="primary">Save Template</button>
+        </div>
+      </form>
+    </div>
+
     <ul id="template-list"></ul>
+
     <script type="module" src="./options.ts"></script>
   </body>
 </html>
