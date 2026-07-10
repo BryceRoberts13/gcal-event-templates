@@ -9,6 +9,7 @@ import {
 import type { EventTemplate, GcalColorId } from "../types";
 
 const listElement = document.getElementById("template-list") as HTMLUListElement;
+const emptyState = document.getElementById("empty-state") as HTMLParagraphElement;
 const editorOverlay = document.getElementById("editor-overlay") as HTMLDivElement;
 const templateForm = document.getElementById("template-form") as HTMLFormElement;
 const addBtn = document.getElementById("add-template") as HTMLButtonElement;
@@ -29,6 +30,7 @@ const fieldColor = document.getElementById("field-color") as HTMLSelectElement;
 async function renderList(): Promise<void> {
   const templates = await listTemplates();
   listElement.innerHTML = "";
+  emptyState.classList.toggle("hidden", templates.length > 0);
 
   templates.forEach((template) => {
     const li = document.createElement("li");

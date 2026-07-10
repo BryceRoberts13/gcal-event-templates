@@ -1,10 +1,14 @@
 {
   "manifest_version": 3,
   "name": "Google Calendar Event Templates",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "description": "Searchable event templates in Google Calendar's create-event title field",
   "permissions": ["storage", "tabs"],
   "host_permissions": ["https://calendar.google.com/*"],
+  "action": {
+    "default_title": "Event Templates",
+    "default_popup": "src/popup/popup.html"
+  },
   "background": {
     "service_worker": "src/background/service-worker.ts",
     "type": "module"

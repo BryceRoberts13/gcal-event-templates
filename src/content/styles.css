@@ -38,6 +38,28 @@
   max-width: 360px;
 }
 
+.gcet-dropdown-footer {
+  border-top: 1px solid #e8eaed;
+  margin-top: 4px;
+  padding: 4px 0 0;
+}
+
+.gcet-dropdown-manage {
+  display: block;
+  width: 100%;
+  padding: 8px 12px;
+  border: none;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  font: 13px/20px "Google Sans", Roboto, Arial, sans-serif;
+  color: #1a73e8;
+}
+
+.gcet-dropdown-manage:hover {
+  background: #e8f0fe;
+}
+
 .gcet-save-split {
   display: inline-flex;
   align-items: center;
@@ -101,4 +123,54 @@
   color: #fff;
   font: 13px/18px Roboto, Arial, sans-serif;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+}
+
+.gcet-refresh-banner {
+  position: fixed;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 2147483647;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: min(560px, calc(100vw - 32px));
+  padding: 12px 14px;
+  border-radius: 8px;
+  background: #202124;
+  color: #fff;
+  font: 13px/18px Roboto, Arial, sans-serif;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.28);
+}
+
+.gcet-refresh-banner-btn {
+  flex-shrink: 0;
+  padding: 6px 12px;
+  border: none;
+  border-radius: 4px;
+  background: #1a73e8;
+  color: #fff;
+  cursor: pointer;
+  font: 13px/18px Roboto, Arial, sans-serif;
+}
+
+.gcet-refresh-banner-btn:hover {
+  background: #1765cc;
+}
+
+.gcet-refresh-banner-dismiss {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: #fff;
+  cursor: pointer;
+  font: 20px/28px Roboto, Arial, sans-serif;
+}
+
+.gcet-refresh-banner-dismiss:hover {
+  background: rgba(255, 255, 255, 0.12);
 }

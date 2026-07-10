@@ -1,4 +1,9 @@
 import type { TemplateStore } from "../types";
+import {
+  ExtensionContextInvalidatedError,
+  isExtensionContextInvalidated,
+  isExtensionContextValid,
+} from "./extension-context";
 
 export const STORAGE_KEY = "templateStore";
 
@@ -44,23 +49,43 @@ function isCalendarContentPage(): boolean {
   }
 }
 
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => window.setTimeout(resolve, ms));
+}
+
 export async function loadStoreViaMessaging(): Promise<TemplateStore | null> {
   if (!globalThis.chrome?.runtime?.sendMessage) {
     return null;
   }
-  try {
-    const response = (await chrome.runtime.sendMessage({
-      type: "gcet/get-store",
-    })) as { ok: boolean; store?: TemplateStore; error?: string } | undefined;
-    if (response?.ok && response.store) {
-      return response.store;
-    }
-    if (response?.error) {
-      console.warn("[gcal-event-templates] get-store failed:", response.error);
-    }
-  } catch (error) {
-    console.warn("[gcal-event-templates] messaging get-store failed:", error);
+
+  if (!isExtensionContextValid()) {
+    throw new ExtensionContextInvalidatedError();
   }
+
+  const maxAttempts = 3;
+  for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+    try {
+      const response = (await chrome.runtime.sendMessage({
+        type: "gcet/get-store",
+      })) as { ok: boolean; store?: TemplateStore; error?: string } | undefined;
+      if (response?.ok && response.store) {
+        return response.store;
+      }
+      if (response?.error) {
+        console.warn("[gcal-event-templates] get-store failed:", response.error);
+      }
+    } catch (error) {
+      if (isExtensionContextInvalidated(error) || !isExtensionContextValid()) {
+        throw new ExtensionContextInvalidatedError();
+      }
+      console.warn("[gcal-event-templates] messaging get-store failed:", error);
+    }
+
+    if (attempt < maxAttempts - 1) {
+      await delay(100);
+    }
+  }
+
   return null;
 }
 
@@ -68,6 +93,11 @@ export async function saveStoreViaMessaging(store: TemplateStore): Promise<boole
   if (!globalThis.chrome?.runtime?.sendMessage) {
     return false;
   }
+
+  if (!isExtensionContextValid()) {
+    throw new ExtensionContextInvalidatedError();
+  }
+
   try {
     const response = (await chrome.runtime.sendMessage({
       type: "gcet/set-store",
@@ -80,6 +110,9 @@ export async function saveStoreViaMessaging(store: TemplateStore): Promise<boole
       console.warn("[gcal-event-templates] set-store failed:", response.error);
     }
   } catch (error) {
+    if (isExtensionContextInvalidated(error) || !isExtensionContextValid()) {
+      throw new ExtensionContextInvalidatedError();
+    }
     console.warn("[gcal-event-templates] messaging set-store failed:", error);
   }
   return false;
@@ -91,12 +124,19 @@ export async function saveStoreViaMessaging(store: TemplateStore): Promise<boole
  */
 export async function readPersistedStore(): Promise<TemplateStore | undefined> {
   if (isCalendarContentPage()) {
-    const viaMessage = await loadStoreViaMessaging();
-    if (viaMessage) {
-      return viaMessage;
+    try {
+      const viaMessage = await loadStoreViaMessaging();
+      if (viaMessage) {
+        return viaMessage;
+      }
+    } catch (error) {
+      if (isExtensionContextInvalidated(error)) {
+        throw error;
+      }
     }
+
     throw new Error(
-      "Background worker did not return templates. In chrome://extensions, remove this extension and Load unpacked from dist/ (version 0.3.0).",
+      "Background worker did not return templates. Reload the extension in chrome://extensions, then refresh this Calendar tab.",
     );
   }
 
@@ -110,13 +150,33 @@ export async function readPersistedStore(): Promise<TemplateStore | undefined> {
 
 export async function writePersistedStore(store: TemplateStore): Promise<void> {
   if (isCalendarContentPage()) {
-    const ok = await saveStoreViaMessaging(store);
-    if (!ok) {
-      throw new Error(
-        "Unable to save templates via background worker. Reload the unpacked extension from dist/.",
-      );
+    try {
+      const ok = await saveStoreViaMessaging(store);
+      if (ok) {
+        return;
+      }
+    } catch (error) {
+      if (isExtensionContextInvalidated(error)) {
+        throw error;
+      }
     }
-    return;
+    throw new Error(
+      "Unable to save templates via background worker. Refresh this Calendar tab after reloading the extension.",
+    );
+  }
+
+  // Options / popup: prefer messaging so the service worker notifies open Calendar tabs.
+  if (isExtensionContextValid()) {
+    try {
+      const ok = await saveStoreViaMessaging(store);
+      if (ok) {
+        return;
+      }
+    } catch (error) {
+      if (isExtensionContextInvalidated(error)) {
+        throw error;
+      }
+    }
   }
 
   try {

@@ -9,8 +9,16 @@ body {
 header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
   margin-bottom: 2rem;
+  gap: 1rem;
+}
+
+.subtitle {
+  margin: 0.35rem 0 0;
+  font-size: 0.9rem;
+  color: #5f6368;
+  max-width: 28rem;
 }
 
 .toolbar {
@@ -117,4 +125,12 @@ button.danger:hover {
 .template-actions {
   display: flex;
   gap: 0.5rem;
+}
+
+.empty-state {
+  text-align: center;
+  color: #5f6368;
+  padding: 2rem 1rem;
+  border: 1px dashed #dadce0;
+  border-radius: 8px;
 }

@@ -7,7 +7,10 @@
   </head>
   <body>
     <header>
-      <h1>Event Templates</h1>
+      <div>
+        <h1>Event Templates</h1>
+        <p class="subtitle">Add, edit, or delete templates. Changes apply to open Google Calendar tabs.</p>
+      </div>
       <div class="toolbar">
         <button id="add-template" class="primary">Add Template</button>
         <button id="export-json">Export</button>
@@ -61,6 +64,7 @@
     </div>
 
     <ul id="template-list"></ul>
+    <p id="empty-state" class="hidden empty-state">No templates yet. Click <strong>Add Template</strong> to create one.</p>
 
     <script type="module" src="./options.ts"></script>
   </body>

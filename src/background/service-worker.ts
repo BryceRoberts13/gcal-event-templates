@@ -3,7 +3,8 @@ import { STORAGE_KEY } from "../store/storage";
 
 type Message =
   | { type: "gcet/get-store" }
-  | { type: "gcet/set-store"; store: TemplateStore };
+  | { type: "gcet/set-store"; store: TemplateStore }
+  | { type: "gcet/open-options" };
 
 function storageArea(): chrome.storage.StorageArea {
   const area = chrome.storage?.sync ?? chrome.storage?.local;
@@ -44,10 +45,24 @@ async function setStore(store: TemplateStore): Promise<void> {
   }
 }
 
-chrome.runtime.onInstalled.addListener(() => {
+async function refreshCalendarTabs(): Promise<void> {
+  const tabs = await chrome.tabs.query({ url: "https://calendar.google.com/*" });
+  await Promise.all(
+    tabs
+      .filter((tab) => tab.id != null)
+      .map((tab) => chrome.tabs.reload(tab.id!)),
+  );
+}
+
+chrome.runtime.onInstalled.addListener((details) => {
   void getStore().then(() => {
     console.info("[gcal-event-templates] defaults ensured on install");
   });
+
+  // Stale content scripts cannot message the worker after an extension reload.
+  if (details.reason === "update") {
+    void refreshCalendarTabs();
+  }
 });
 
 chrome.runtime.onMessage.addListener((message: Message, _sender, sendResponse) => {
@@ -75,7 +90,20 @@ chrome.runtime.onMessage.addListener((message: Message, _sender, sendResponse) =
     return true;
   }
 
+  if (message?.type === "gcet/open-options") {
+    void chrome.runtime
+      .openOptionsPage()
+      .then(() => sendResponse({ ok: true }))
+      .catch((error: unknown) =>
+        sendResponse({
+          ok: false,
+          error: error instanceof Error ? error.message : String(error),
+        }),
+      );
+    return true;
+  }
+
   return false;
 });
 
-console.info("[gcal-event-templates] service worker ready (v0.3.0)");
+console.info("[gcal-event-templates] service worker ready (v0.3.2)");

@@ -1,8 +1,10 @@
 import { searchTemplates } from "../search/template-search";
+import { openTemplateManager } from "../open-options";
 import type { EventTemplate } from "../types";
 
 const DROPDOWN_CLASS = "gcet-dropdown";
 const ITEM_CLASS = "gcet-dropdown-item";
+const MANAGE_CLASS = "gcet-dropdown-manage";
 
 function matchesForQuery(
   templates: EventTemplate[],
@@ -55,6 +57,7 @@ export function mountTemplateCombobox(
       item.className = ITEM_CLASS;
       item.setAttribute("role", "option");
       item.setAttribute("aria-selected", index === activeIndex ? "true" : "false");
+      item.dataset.gcetIndex = String(index);
 
       const name = document.createElement("div");
       name.className = "gcet-dropdown-item-name";
@@ -68,19 +71,21 @@ export function mountTemplateCombobox(
         item.appendChild(hint);
       }
 
-      item.addEventListener("mousedown", (event) => {
-        event.preventDefault();
-        onSelect(template);
-        close();
-      });
-
       dropdown.appendChild(item);
     }
 
-    dropdown.hidden = matches.length === 0;
-    if (!dropdown.hidden) {
-      positionDropdown();
-    }
+    const footer = document.createElement("li");
+    footer.className = "gcet-dropdown-footer";
+    footer.setAttribute("role", "presentation");
+    const manageBtn = document.createElement("button");
+    manageBtn.type = "button";
+    manageBtn.className = MANAGE_CLASS;
+    manageBtn.textContent = "Manage templates…";
+    footer.appendChild(manageBtn);
+    dropdown.appendChild(footer);
+
+    dropdown.hidden = false;
+    positionDropdown();
   };
 
   const open = () => {
@@ -90,6 +95,57 @@ export function mountTemplateCombobox(
   const close = () => {
     dropdown.hidden = true;
     activeIndex = -1;
+  };
+
+  const selectAt = (index: number) => {
+    const matches = matchesForQuery(templates, titleInput.value);
+    const template = matches[index];
+    if (!template) {
+      return;
+    }
+    onSelect(template);
+    close();
+  };
+
+  /**
+   * GCal registers document capture outside-click listeners. Our overlay is
+   * appended to body (outside the dialog), so without intercepting at window
+   * capture the dialog closes before a template can be applied.
+   */
+  const shieldPage = (event: Event) => {
+    const target = event.target;
+    if (!(target instanceof Node) || !dropdown.contains(target)) {
+      return;
+    }
+
+    // Only apply on the first press of a gesture; close() hides the list so a
+    // follow-up pointerdown/mousedown of the same click does not re-apply.
+    if (
+      !dropdown.hidden &&
+      (event.type === "mousedown" || event.type === "pointerdown")
+    ) {
+      const manage =
+        target instanceof Element ? target.closest(`.${MANAGE_CLASS}`) : null;
+      if (manage) {
+        event.preventDefault();
+        close();
+        void openTemplateManager();
+        event.stopImmediatePropagation();
+        return;
+      }
+
+      const item =
+        target instanceof Element ? target.closest(`.${ITEM_CLASS}`) : null;
+      if (item instanceof HTMLElement) {
+        const index = Number(item.dataset.gcetIndex);
+        if (Number.isFinite(index)) {
+          event.preventDefault();
+          selectAt(index);
+        }
+      }
+    }
+
+    event.stopImmediatePropagation();
   };
 
   const moveActive = (delta: number) => {
@@ -107,11 +163,8 @@ export function mountTemplateCombobox(
   };
 
   const selectActive = () => {
-    const matches = matchesForQuery(templates, titleInput.value);
-    const template = matches[activeIndex];
-    if (template) {
-      onSelect(template);
-      close();
+    if (activeIndex >= 0) {
+      selectAt(activeIndex);
     }
   };
 
@@ -161,6 +214,11 @@ export function mountTemplateCombobox(
   titleInput.addEventListener("blur", onBlur);
   window.addEventListener("scroll", onScrollOrResize, true);
   window.addEventListener("resize", onScrollOrResize);
+  window.addEventListener("mousedown", shieldPage, true);
+  window.addEventListener("mouseup", shieldPage, true);
+  window.addEventListener("click", shieldPage, true);
+  window.addEventListener("pointerdown", shieldPage, true);
+  window.addEventListener("pointerup", shieldPage, true);
 
   return () => {
     titleInput.removeEventListener("focus", onFocus);
@@ -170,6 +228,11 @@ export function mountTemplateCombobox(
     titleInput.removeEventListener("blur", onBlur);
     window.removeEventListener("scroll", onScrollOrResize, true);
     window.removeEventListener("resize", onScrollOrResize);
+    window.removeEventListener("mousedown", shieldPage, true);
+    window.removeEventListener("mouseup", shieldPage, true);
+    window.removeEventListener("click", shieldPage, true);
+    window.removeEventListener("pointerdown", shieldPage, true);
+    window.removeEventListener("pointerup", shieldPage, true);
     delete titleInput.dataset.gcetMounted;
     dropdown.remove();
   };

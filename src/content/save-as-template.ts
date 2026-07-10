@@ -3,12 +3,19 @@ import {
   findSaveControls,
   findTitleInputIn,
 } from "../gcal/dom-adapter";
+import { openTemplateManager } from "../open-options";
+import { isExtensionContextInvalidated } from "../store/extension-context";
 import { upsertTemplate } from "../store/template-store";
+import { showExtensionRefreshBanner } from "./refresh-banner";
 
 const MENU_ID = "gcet-save-menu";
 const BTN_ID = "gcet-save-as-template-btn";
 
+let menuTeardown: (() => void) | null = null;
+
 function closeMenu(): void {
+  menuTeardown?.();
+  menuTeardown = null;
   document.getElementById(MENU_ID)?.remove();
 }
 
@@ -30,12 +37,21 @@ async function saveCurrentAsTemplate(): Promise<void> {
     return;
   }
 
-  await upsertTemplate({
-    id: crypto.randomUUID(),
-    ...draft,
-    name: trimmed,
-    updatedAt: Date.now(),
-  });
+  try {
+    await upsertTemplate({
+      id: crypto.randomUUID(),
+      ...draft,
+      name: trimmed,
+      updatedAt: Date.now(),
+    });
+  } catch (error) {
+    if (isExtensionContextInvalidated(error)) {
+      showExtensionRefreshBanner();
+      window.alert("Refresh this Calendar tab, then try saving again.");
+      return;
+    }
+    throw error;
+  }
 
   closeMenu();
   showToast(`Saved template “${trimmed}”`);
@@ -64,10 +80,15 @@ function openMenuNear(anchor: HTMLElement): void {
   item.className = "gcet-save-menu-item";
   item.setAttribute("role", "menuitem");
   item.textContent = "Save as template";
-  item.addEventListener("click", () => {
-    void saveCurrentAsTemplate();
-  });
   menu.appendChild(item);
+
+  const manageItem = document.createElement("button");
+  manageItem.type = "button";
+  manageItem.className = "gcet-save-menu-item";
+  manageItem.setAttribute("role", "menuitem");
+  manageItem.dataset.gcetAction = "manage";
+  manageItem.textContent = "Manage templates…";
+  menu.appendChild(manageItem);
 
   const rect = anchor.getBoundingClientRect();
   menu.style.position = "fixed";
@@ -76,14 +97,55 @@ function openMenuNear(anchor: HTMLElement): void {
   menu.style.zIndex = "2147483647";
   document.body.appendChild(menu);
 
-  const onDocClick = (event: MouseEvent) => {
-    if (!(event.target instanceof Node) || menu.contains(event.target) || anchor.contains(event.target)) {
+  // Window capture: handle our UI and block GCal document outside-click handlers.
+  let handledSave = false;
+  const shield = (event: Event) => {
+    const target = event.target;
+    if (!(target instanceof Node)) {
+      return;
+    }
+    if (menu.contains(target) || anchor.contains(target)) {
+      if (
+        (event.type === "mousedown" || event.type === "pointerdown") &&
+        target instanceof Element
+      ) {
+        if (target.closest('[data-gcet-action="manage"]')) {
+          event.preventDefault();
+          event.stopImmediatePropagation();
+          closeMenu();
+          void openTemplateManager();
+          return;
+        }
+        if (target.closest(".gcet-save-menu-item")) {
+          event.preventDefault();
+          event.stopImmediatePropagation();
+          if (!handledSave) {
+            handledSave = true;
+            void saveCurrentAsTemplate();
+          }
+          return;
+        }
+      }
+      event.stopImmediatePropagation();
       return;
     }
     closeMenu();
-    document.removeEventListener("mousedown", onDocClick, true);
   };
-  document.addEventListener("mousedown", onDocClick, true);
+
+  const teardown = () => {
+    window.removeEventListener("mousedown", shield, true);
+    window.removeEventListener("mouseup", shield, true);
+    window.removeEventListener("click", shield, true);
+    window.removeEventListener("pointerdown", shield, true);
+    window.removeEventListener("pointerup", shield, true);
+  };
+  menuTeardown = teardown;
+
+  window.addEventListener("mousedown", shield, true);
+  window.addEventListener("mouseup", shield, true);
+  window.addEventListener("click", shield, true);
+  window.addEventListener("pointerdown", shield, true);
+  window.addEventListener("pointerup", shield, true);
 }
 
 function mountSplitControl(saveButton: HTMLElement): void {

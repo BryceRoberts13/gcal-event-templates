@@ -1,0 +1,40 @@
+body {
+  width: 260px;
+  margin: 0;
+  padding: 16px;
+  font-family: system-ui, -apple-system, sans-serif;
+  color: #202124;
+}
+
+h1 {
+  margin: 0 0 8px;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+p {
+  margin: 0 0 14px;
+  font-size: 0.85rem;
+  color: #5f6368;
+  line-height: 1.4;
+}
+
+button {
+  width: 100%;
+  padding: 0.55rem 1rem;
+  border-radius: 4px;
+  border: 1px solid #dadce0;
+  background: white;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+button.primary {
+  background: #1a73e8;
+  color: white;
+  border-color: #1a73e8;
+}
+
+button.primary:hover {
+  background: #1765cc;
+}

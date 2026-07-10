@@ -50,4 +50,41 @@ describe("mountTemplateCombobox", () => {
 
     expect(onSelect).toHaveBeenCalledWith(templates[0]);
   });
+
+  it("calls onSelect when an item is clicked", () => {
+    const onSelect = vi.fn();
+    mountTemplateCombobox(input, templates, onSelect);
+    input.dispatchEvent(new Event("focus"));
+
+    const item = document.querySelector(".gcet-dropdown-item") as HTMLElement;
+    item.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, cancelable: true }));
+
+    expect(onSelect).toHaveBeenCalledWith(templates[0]);
+  });
+
+  it("stops mousedown from reaching document so GCal cannot treat it as outside click", () => {
+    const onSelect = vi.fn();
+    const documentSpy = vi.fn();
+    document.addEventListener("mousedown", documentSpy, true);
+
+    mountTemplateCombobox(input, templates, onSelect);
+    input.dispatchEvent(new Event("focus"));
+
+    const item = document.querySelector(".gcet-dropdown-item") as HTMLElement;
+    item.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, cancelable: true }));
+
+    expect(onSelect).toHaveBeenCalledWith(templates[0]);
+    expect(documentSpy).not.toHaveBeenCalled();
+
+    document.removeEventListener("mousedown", documentSpy, true);
+  });
+
+  it("shows a manage templates footer in the dropdown", () => {
+    mountTemplateCombobox(input, templates, vi.fn());
+    input.dispatchEvent(new Event("focus"));
+
+    const manage = document.querySelector(".gcet-dropdown-manage");
+    expect(manage).not.toBeNull();
+    expect(manage!.textContent).toContain("Manage templates");
+  });
 });
