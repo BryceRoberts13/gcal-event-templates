@@ -5,13 +5,20 @@ import {
 } from "../gcal/dom-adapter";
 import { openTemplateManager } from "../open-options";
 import { isExtensionContextInvalidated } from "../store/extension-context";
-import { upsertTemplate } from "../store/template-store";
+import { listTemplates, upsertTemplate } from "../store/template-store";
+import type { EventTemplate } from "../types";
+import { findMatchingTemplate } from "./match-template";
 import { showExtensionRefreshBanner } from "./refresh-banner";
 
 const MENU_ID = "gcet-save-menu";
 const BTN_ID = "gcet-save-as-template-btn";
+const COMBINED_SAVE_LABEL = "Save & update template";
 
 let menuTeardown: (() => void) | null = null;
+let matchedTemplate: EventTemplate | null = null;
+let labeledSaveButton: HTMLElement | null = null;
+let originalSaveLabel: { text: string; aria: string | null } | null = null;
+let titleBlurBound: HTMLInputElement | null = null;
 
 function closeMenu(): void {
   menuTeardown?.();
@@ -68,6 +75,78 @@ function showToast(message: string): void {
   window.setTimeout(() => toast.remove(), 2500);
 }
 
+function setSaveLabel(saveButton: HTMLElement, label: string): void {
+  saveButton.textContent = label;
+  saveButton.setAttribute("aria-label", label);
+}
+
+function enterMatchedMode(saveButton: HTMLElement, template: EventTemplate): void {
+  matchedTemplate = template;
+  if (labeledSaveButton !== saveButton || !originalSaveLabel) {
+    originalSaveLabel = {
+      text: (saveButton.textContent ?? "Save").trim() || "Save",
+      aria: saveButton.getAttribute("aria-label"),
+    };
+    labeledSaveButton = saveButton;
+  }
+  setSaveLabel(saveButton, COMBINED_SAVE_LABEL);
+}
+
+function leaveMatchedMode(): void {
+  matchedTemplate = null;
+  if (labeledSaveButton && originalSaveLabel) {
+    setSaveLabel(labeledSaveButton, originalSaveLabel.text);
+    if (originalSaveLabel.aria == null) {
+      labeledSaveButton.removeAttribute("aria-label");
+    } else {
+      labeledSaveButton.setAttribute("aria-label", originalSaveLabel.aria);
+    }
+  }
+  labeledSaveButton = null;
+  originalSaveLabel = null;
+}
+
+function bindTitleBlur(titleInput: HTMLInputElement): void {
+  if (titleBlurBound === titleInput) {
+    return;
+  }
+  titleBlurBound?.removeEventListener("blur", onTitleBlur);
+  titleBlurBound = titleInput;
+  titleInput.addEventListener("blur", onTitleBlur);
+}
+
+function onTitleBlur(): void {
+  void reevaluateSaveMatch();
+}
+
+export async function reevaluateSaveMatch(): Promise<void> {
+  const titleInput = findTitleInputIn(document);
+  const foundSaveButton = findSaveControls(document).saveButton;
+  const saveButton =
+    foundSaveButton ?? (labeledSaveButton?.isConnected ? labeledSaveButton : null);
+  if (!titleInput || !saveButton) {
+    leaveMatchedMode();
+    return;
+  }
+
+  bindTitleBlur(titleInput);
+
+  let templates: EventTemplate[];
+  try {
+    templates = await listTemplates();
+  } catch {
+    leaveMatchedMode();
+    return;
+  }
+
+  const match = findMatchingTemplate(titleInput.value, templates);
+  if (match) {
+    enterMatchedMode(saveButton, match);
+  } else {
+    leaveMatchedMode();
+  }
+}
+
 function openMenuNear(anchor: HTMLElement): void {
   closeMenu();
   const menu = document.createElement("div");
@@ -75,10 +154,21 @@ function openMenuNear(anchor: HTMLElement): void {
   menu.className = "gcet-save-menu";
   menu.setAttribute("role", "menu");
 
+  if (matchedTemplate) {
+    const saveOnly = document.createElement("button");
+    saveOnly.type = "button";
+    saveOnly.className = "gcet-save-menu-item";
+    saveOnly.setAttribute("role", "menuitem");
+    saveOnly.dataset.gcetAction = "save-only";
+    saveOnly.textContent = "Save only";
+    menu.appendChild(saveOnly);
+  }
+
   const item = document.createElement("button");
   item.type = "button";
   item.className = "gcet-save-menu-item";
   item.setAttribute("role", "menuitem");
+  item.dataset.gcetAction = "save-as-template";
   item.textContent = "Save as template";
   menu.appendChild(item);
 
@@ -116,7 +206,15 @@ function openMenuNear(anchor: HTMLElement): void {
           void openTemplateManager();
           return;
         }
-        if (target.closest(".gcet-save-menu-item")) {
+        if (target.closest('[data-gcet-action="save-only"]')) {
+          event.preventDefault();
+          event.stopImmediatePropagation();
+          closeMenu();
+          const { saveButton } = findSaveControls(document);
+          (saveButton ?? labeledSaveButton)?.click();
+          return;
+        }
+        if (target.closest('[data-gcet-action="save-as-template"]')) {
           event.preventDefault();
           event.stopImmediatePropagation();
           if (!handledSave) {
@@ -196,6 +294,7 @@ function tryAttach(): void {
   const { saveButton, moreActions } = findSaveControls(document);
   if (saveButton) {
     mountSplitControl(saveButton);
+    void reevaluateSaveMatch();
     return;
   }
   // Fall back: attach near More actions if Save isn't found yet.
@@ -229,5 +328,8 @@ export function watchForSaveTemplateControl(): () => void {
     window.clearInterval(intervalId);
     closeMenu();
     document.getElementById(BTN_ID)?.remove();
+    titleBlurBound?.removeEventListener("blur", onTitleBlur);
+    titleBlurBound = null;
+    leaveMatchedMode();
   };
 }
