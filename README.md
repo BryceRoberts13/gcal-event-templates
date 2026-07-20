@@ -50,6 +50,11 @@ Run through this checklist after changes or when Google Calendar updates its UI.
 | 7 | Templates persist across browser restart | |
 | 8 | `chrome.storage.sync` syncs to second profile (optional) | |
 | 9 | Full event editor title field also gets combobox | |
+| 10 | Matching title (blur or template pick) → Save becomes "Save & update template" | |
+| 11 | Combined Save updates template fields and saves the event | |
+| 12 | Caret "Save only" saves event without changing template | |
+| 13 | Non-matching title after blur → normal Save restored | |
+| 14 | Duplicate template names → newest updatedAt is updated | |
 
 ## Known limitations
 
