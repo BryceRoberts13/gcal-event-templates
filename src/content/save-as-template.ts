@@ -366,6 +366,7 @@ export function watchForSaveTemplateControl(): () => void {
     document.getElementById(BTN_ID)?.remove();
     titleBlurBound?.removeEventListener("blur", onTitleBlur);
     titleBlurBound = null;
+    saveMatchEvaluationGeneration++;
     leaveMatchedMode();
   };
 }

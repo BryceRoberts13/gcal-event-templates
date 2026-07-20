@@ -97,6 +97,28 @@ describe("save match mode UI", () => {
     });
   });
 
+  it("discards in-flight match evaluation when watcher stops", async () => {
+    const { save } = mountEditor("Gym");
+    await reevaluateSaveMatch();
+    expect(save.textContent?.trim()).toBe("Save & update template");
+
+    let resolveTemplates!: (templates: typeof gymTemplate[]) => void;
+    vi.mocked(listTemplates).mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolveTemplates = resolve;
+      }),
+    );
+
+    const evaluation = reevaluateSaveMatch();
+    stop();
+    expect(save.textContent?.trim()).toBe("Save");
+
+    resolveTemplates([gymTemplate]);
+    await evaluation;
+
+    expect(save.textContent?.trim()).toBe("Save");
+  });
+
   it("discards an older match evaluation that resolves last", async () => {
     stop();
     stop = () => undefined;
