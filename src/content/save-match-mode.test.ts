@@ -194,6 +194,45 @@ describe("save match mode UI", () => {
     });
   });
 
+  it("relabels a recreated Save button while still matched", async () => {
+    const { save } = mountEditor("Gym");
+    await reevaluateSaveMatch();
+    await vi.waitFor(() => {
+      expect(document.querySelector(".gcet-save-caret")).not.toBeNull();
+    });
+
+    const replacement = document.createElement("button");
+    replacement.type = "button";
+    replacement.textContent = "Save";
+    save.replaceWith(replacement);
+
+    await vi.waitFor(() => {
+      expect(replacement.textContent?.trim()).toBe("Save & update template");
+      expect(replacement.getAttribute("aria-label")).toBe("Save & update template");
+    });
+  });
+
+  it("clears the matched template when the editor closes", async () => {
+    const { save } = mountEditor("Gym");
+    await reevaluateSaveMatch();
+    expect(save.textContent?.trim()).toBe("Save & update template");
+
+    document.body.innerHTML = "";
+
+    await vi.waitFor(() => {
+      expect(save.textContent?.trim()).toBe("Save");
+    });
+
+    vi.mocked(upsertTemplate).mockClear();
+    const reopened = mountEditor("Something else").save;
+    const nativeHandler = vi.fn();
+    reopened.addEventListener("click", nativeHandler);
+    reopened.click();
+
+    expect(nativeHandler).toHaveBeenCalledOnce();
+    expect(upsertTemplate).not.toHaveBeenCalled();
+  });
+
   it("offers Save only in matched mode and clicks native Save", async () => {
     const { save } = mountEditor("Gym");
     const nativeSave = vi.fn();
@@ -234,6 +273,27 @@ describe("save match mode UI", () => {
       }),
     );
     await vi.waitFor(() => expect(nativeHandler).toHaveBeenCalled());
+  });
+
+  it("preserves stored optional fields when the form omits them", async () => {
+    const templateWithOptionalFields = {
+      ...gymTemplate,
+      description: "Leg day",
+    };
+    vi.mocked(listTemplates).mockResolvedValue([templateWithOptionalFields]);
+    const { save } = mountEditor("Gym");
+
+    await reevaluateSaveMatch();
+    save.click();
+    await vi.waitFor(() => expect(upsertTemplate).toHaveBeenCalled());
+
+    expect(upsertTemplate).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        description: "Leg day",
+        location: "Z Center",
+        colorId: "10",
+      }),
+    );
   });
 
   it("submits only once when Save is clicked twice during an upsert", async () => {

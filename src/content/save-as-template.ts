@@ -93,13 +93,23 @@ async function updateMatchedTemplateFromForm(
     throw new Error("Could not find the event title field.");
   }
   const draft = extractTemplateFromSurface(titleInput);
-  await upsertTemplate({
+  const next: EventTemplate = {
     ...template,
-    ...draft,
+    name: draft.name,
     id: template.id,
     keywords: template.keywords,
     updatedAt: Date.now(),
-  });
+  };
+  if (draft.description !== undefined) {
+    next.description = draft.description;
+  }
+  if (draft.location !== undefined) {
+    next.location = draft.location;
+  }
+  if (draft.colorId !== undefined) {
+    next.colorId = draft.colorId;
+  }
+  await upsertTemplate(next);
 }
 
 function clickNativeSave(saveButton: HTMLElement): void {
@@ -402,15 +412,20 @@ function mountSplitControl(saveButton: HTMLElement): void {
 function tryAttach(): void {
   const title = findTitleInputIn(document);
   if (!title) {
+    leaveMatchedMode();
     return;
   }
   const existing = document.getElementById(BTN_ID);
   const { saveButton, moreActions } = findSaveControls(document);
   if (saveButton) {
+    const saveButtonChanged = saveClickBound !== saveButton;
     if (matchedTemplate) {
       bindSaveIntercept(saveButton);
     }
     if (existing?.dataset.gcetPlacement === "save") {
+      if (saveButtonChanged && matchedTemplate) {
+        void reevaluateSaveMatch();
+      }
       return;
     }
     existing?.remove();
