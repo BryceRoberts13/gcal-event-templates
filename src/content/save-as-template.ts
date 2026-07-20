@@ -19,6 +19,8 @@ let matchedTemplate: EventTemplate | null = null;
 let labeledSaveButton: HTMLElement | null = null;
 let originalSaveLabel: { text: string; aria: string | null } | null = null;
 let titleBlurBound: HTMLInputElement | null = null;
+let saveMatchEvaluationGeneration = 0;
+let pendingSaveMatchEvaluation: Promise<void> | null = null;
 
 function closeMenu(): void {
   menuTeardown?.();
@@ -119,13 +121,15 @@ function onTitleBlur(): void {
   void reevaluateSaveMatch();
 }
 
-export async function reevaluateSaveMatch(): Promise<void> {
+async function evaluateSaveMatch(generation: number): Promise<void> {
   const titleInput = findTitleInputIn(document);
   const foundSaveButton = findSaveControls(document).saveButton;
   const saveButton =
     foundSaveButton ?? (labeledSaveButton?.isConnected ? labeledSaveButton : null);
   if (!titleInput || !saveButton) {
-    leaveMatchedMode();
+    if (generation === saveMatchEvaluationGeneration) {
+      leaveMatchedMode();
+    }
     return;
   }
 
@@ -135,16 +139,46 @@ export async function reevaluateSaveMatch(): Promise<void> {
   try {
     templates = await listTemplates();
   } catch {
-    leaveMatchedMode();
+    if (generation === saveMatchEvaluationGeneration) {
+      leaveMatchedMode();
+    }
     return;
   }
 
+  if (generation !== saveMatchEvaluationGeneration) {
+    return;
+  }
   const match = findMatchingTemplate(titleInput.value, templates);
   if (match) {
     enterMatchedMode(saveButton, match);
   } else {
     leaveMatchedMode();
   }
+}
+
+export function reevaluateSaveMatch(): Promise<void> {
+  const generation = ++saveMatchEvaluationGeneration;
+  const evaluation = evaluateSaveMatch(generation);
+  pendingSaveMatchEvaluation = evaluation;
+  void evaluation.finally(() => {
+    if (pendingSaveMatchEvaluation === evaluation) {
+      pendingSaveMatchEvaluation = null;
+    }
+  });
+  return evaluation;
+}
+
+async function toggleMenuNear(anchor: HTMLElement): Promise<void> {
+  const existing = document.getElementById(MENU_ID);
+  if (existing) {
+    closeMenu();
+    return;
+  }
+  await pendingSaveMatchEvaluation;
+  if (!anchor.isConnected || document.getElementById(MENU_ID)) {
+    return;
+  }
+  openMenuNear(anchor);
 }
 
 function openMenuNear(anchor: HTMLElement): void {
@@ -259,6 +293,7 @@ function mountSplitControl(saveButton: HTMLElement): void {
   const split = document.createElement("div");
   split.className = "gcet-save-split";
   split.id = BTN_ID;
+  split.dataset.gcetPlacement = "save";
 
   const caret = document.createElement("button");
   caret.type = "button";
@@ -270,12 +305,7 @@ function mountSplitControl(saveButton: HTMLElement): void {
   caret.addEventListener("click", (event) => {
     event.preventDefault();
     event.stopPropagation();
-    const existing = document.getElementById(MENU_ID);
-    if (existing) {
-      closeMenu();
-      return;
-    }
-    openMenuNear(caret);
+    void toggleMenuNear(caret);
   });
 
   // Prefer inserting next to the save button's container (same row as More actions).
@@ -284,25 +314,31 @@ function mountSplitControl(saveButton: HTMLElement): void {
 }
 
 function tryAttach(): void {
-  if (document.getElementById(BTN_ID)) {
-    return;
-  }
   const title = findTitleInputIn(document);
   if (!title) {
     return;
   }
+  const existing = document.getElementById(BTN_ID);
   const { saveButton, moreActions } = findSaveControls(document);
   if (saveButton) {
+    if (existing?.dataset.gcetPlacement === "save") {
+      return;
+    }
+    existing?.remove();
     mountSplitControl(saveButton);
     void reevaluateSaveMatch();
     return;
   }
+  if (existing) {
+    return;
+  }
   // Fall back: attach near More actions if Save isn't found yet.
-  if (moreActions?.parentElement && !document.getElementById(BTN_ID)) {
+  if (moreActions?.parentElement) {
     const caretHost = moreActions.parentElement;
     const split = document.createElement("div");
     split.className = "gcet-save-split";
     split.id = BTN_ID;
+    split.dataset.gcetPlacement = "fallback";
     const caret = document.createElement("button");
     caret.type = "button";
     caret.className = "gcet-save-caret";
@@ -311,7 +347,7 @@ function tryAttach(): void {
     caret.addEventListener("click", (event) => {
       event.preventDefault();
       event.stopPropagation();
-      openMenuNear(caret);
+      void toggleMenuNear(caret);
     });
     split.appendChild(caret);
     caretHost.insertBefore(split, moreActions);
