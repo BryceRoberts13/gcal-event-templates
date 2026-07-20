@@ -236,6 +236,73 @@ describe("save match mode UI", () => {
     await vi.waitFor(() => expect(nativeHandler).toHaveBeenCalled());
   });
 
+  it("submits only once when Save is clicked twice during an upsert", async () => {
+    let resolveUpsert!: () => void;
+    vi.mocked(upsertTemplate).mockReturnValueOnce(
+      new Promise<void>((resolve) => {
+        resolveUpsert = resolve;
+      }),
+    );
+    const { save } = mountEditor("Gym");
+    const nativeHandler = vi.fn();
+    save.addEventListener("click", nativeHandler);
+
+    await reevaluateSaveMatch();
+    save.click();
+    save.click();
+
+    expect(upsertTemplate).toHaveBeenCalledOnce();
+    expect(nativeHandler).not.toHaveBeenCalled();
+
+    resolveUpsert();
+    await vi.waitFor(() => expect(nativeHandler).toHaveBeenCalledOnce());
+    expect(upsertTemplate).toHaveBeenCalledOnce();
+  });
+
+  it("uses the captured template and clears bypass if the intercept is unbound", async () => {
+    let resolveUpsert!: () => void;
+    vi.mocked(upsertTemplate).mockReturnValueOnce(
+      new Promise<void>((resolve) => {
+        resolveUpsert = resolve;
+      }),
+    );
+    const { save } = mountEditor("Gym");
+    const nativeHandler = vi.fn();
+    save.addEventListener("click", nativeHandler);
+    vi.spyOn(window, "alert").mockImplementation(() => undefined);
+
+    await reevaluateSaveMatch();
+    save.click();
+    resolveUpsert();
+    stop();
+
+    await vi.waitFor(() => expect(nativeHandler).toHaveBeenCalledOnce());
+    expect(document.getElementById("gcet-toast")?.textContent).toBe(
+      "Updated template “Gym”",
+    );
+    await vi.waitFor(() => expect(save.getAttribute("data-gcet-native-save")).toBeNull());
+  });
+
+  it("clears the native Save bypass after Save only when unbound", async () => {
+    const { save } = mountEditor("Gym");
+    await reevaluateSaveMatch();
+    (document.querySelector(".gcet-save-caret") as HTMLButtonElement).click();
+    await vi.waitFor(() => {
+      expect(document.querySelector('[data-gcet-action="save-only"]')).not.toBeNull();
+    });
+    const saveOnly = document.querySelector<HTMLButtonElement>(
+      '[data-gcet-action="save-only"]',
+    );
+    vi.spyOn(save, "click").mockImplementation(() => {
+      stop();
+      HTMLButtonElement.prototype.click.call(save);
+    });
+
+    saveOnly?.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, cancelable: true }));
+
+    expect(save.getAttribute("data-gcet-native-save")).toBeNull();
+  });
+
   it("does not native-save when upsert fails", async () => {
     vi.mocked(upsertTemplate).mockRejectedValueOnce(new Error("storage down"));
     const alertSpy = vi.spyOn(window, "alert").mockImplementation(() => undefined);

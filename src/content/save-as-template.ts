@@ -85,22 +85,30 @@ function setSaveLabel(saveButton: HTMLElement, label: string): void {
   saveButton.setAttribute("aria-label", label);
 }
 
-async function updateMatchedTemplateFromForm(): Promise<void> {
-  if (!matchedTemplate) {
-    return;
-  }
+async function updateMatchedTemplateFromForm(
+  template: EventTemplate,
+): Promise<void> {
   const titleInput = findTitleInputIn(document);
   if (!titleInput) {
     throw new Error("Could not find the event title field.");
   }
   const draft = extractTemplateFromSurface(titleInput);
   await upsertTemplate({
-    ...matchedTemplate,
+    ...template,
     ...draft,
-    id: matchedTemplate.id,
-    keywords: matchedTemplate.keywords,
+    id: template.id,
+    keywords: template.keywords,
     updatedAt: Date.now(),
   });
+}
+
+function clickNativeSave(saveButton: HTMLElement): void {
+  saveButton.setAttribute(NATIVE_SAVE_ATTR, "1");
+  try {
+    saveButton.click();
+  } finally {
+    saveButton.removeAttribute(NATIVE_SAVE_ATTR);
+  }
 }
 
 function onSaveClickCapture(event: Event): void {
@@ -112,7 +120,8 @@ function onSaveClickCapture(event: Event): void {
     saveButton.removeAttribute(NATIVE_SAVE_ATTR);
     return;
   }
-  if (!matchedTemplate) {
+  const template = matchedTemplate;
+  if (!template) {
     return;
   }
 
@@ -126,10 +135,9 @@ function onSaveClickCapture(event: Event): void {
 
   void (async () => {
     try {
-      await updateMatchedTemplateFromForm();
-      showToast(`Updated template “${matchedTemplate!.name}”`);
-      saveButton.setAttribute(NATIVE_SAVE_ATTR, "1");
-      saveButton.click();
+      await updateMatchedTemplateFromForm(template);
+      showToast(`Updated template “${template.name}”`);
+      clickNativeSave(saveButton);
     } catch (error) {
       if (isExtensionContextInvalidated(error)) {
         showExtensionRefreshBanner();
@@ -321,8 +329,9 @@ function openMenuNear(anchor: HTMLElement): void {
           closeMenu();
           const { saveButton } = findSaveControls(document);
           const nativeSaveButton = saveButton ?? labeledSaveButton;
-          nativeSaveButton?.setAttribute(NATIVE_SAVE_ATTR, "1");
-          nativeSaveButton?.click();
+          if (nativeSaveButton) {
+            clickNativeSave(nativeSaveButton);
+          }
           return;
         }
         if (target.closest('[data-gcet-action="save-as-template"]')) {
