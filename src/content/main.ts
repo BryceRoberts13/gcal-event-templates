@@ -8,7 +8,10 @@ import { listTemplates } from "../store/template-store";
 import { DEFAULT_TEMPLATES, type EventTemplate } from "../types";
 import { mountTemplateCombobox } from "./combobox";
 import { showExtensionRefreshBanner } from "./refresh-banner";
-import { watchForSaveTemplateControl } from "./save-as-template";
+import {
+  reevaluateSaveMatch,
+  watchForSaveTemplateControl,
+} from "./save-as-template";
 
 const cleanups = new Map<HTMLInputElement, () => void>();
 let trackedInputs: HTMLInputElement[] = [];
@@ -33,6 +36,7 @@ function mountComboboxOn(
 
   const cleanup = mountTemplateCombobox(titleInput, templates, (template) => {
     applyTemplate(titleInput, template);
+    void reevaluateSaveMatch();
   });
   cleanups.set(titleInput, cleanup);
   if (!trackedInputs.includes(titleInput)) {
