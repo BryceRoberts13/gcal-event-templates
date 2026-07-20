@@ -13,12 +13,15 @@ import { showExtensionRefreshBanner } from "./refresh-banner";
 const MENU_ID = "gcet-save-menu";
 const BTN_ID = "gcet-save-as-template-btn";
 const COMBINED_SAVE_LABEL = "Save & update template";
+const NATIVE_SAVE_ATTR = "data-gcet-native-save";
 
 let menuTeardown: (() => void) | null = null;
 let matchedTemplate: EventTemplate | null = null;
 let labeledSaveButton: HTMLElement | null = null;
 let originalSaveLabel: { text: string; aria: string | null } | null = null;
 let titleBlurBound: HTMLInputElement | null = null;
+let saveClickBound: HTMLElement | null = null;
+let saveInFlight = false;
 let saveMatchEvaluationGeneration = 0;
 let pendingSaveMatchEvaluation: Promise<void> | null = null;
 
@@ -82,8 +85,78 @@ function setSaveLabel(saveButton: HTMLElement, label: string): void {
   saveButton.setAttribute("aria-label", label);
 }
 
+async function updateMatchedTemplateFromForm(): Promise<void> {
+  if (!matchedTemplate) {
+    return;
+  }
+  const titleInput = findTitleInputIn(document);
+  if (!titleInput) {
+    throw new Error("Could not find the event title field.");
+  }
+  const draft = extractTemplateFromSurface(titleInput);
+  await upsertTemplate({
+    ...matchedTemplate,
+    ...draft,
+    id: matchedTemplate.id,
+    keywords: matchedTemplate.keywords,
+    updatedAt: Date.now(),
+  });
+}
+
+function onSaveClickCapture(event: Event): void {
+  const saveButton = event.currentTarget;
+  if (!(saveButton instanceof HTMLElement)) {
+    return;
+  }
+  if (saveButton.getAttribute(NATIVE_SAVE_ATTR) === "1") {
+    saveButton.removeAttribute(NATIVE_SAVE_ATTR);
+    return;
+  }
+  if (!matchedTemplate) {
+    return;
+  }
+
+  event.preventDefault();
+  event.stopImmediatePropagation();
+
+  if (saveInFlight) {
+    return;
+  }
+  saveInFlight = true;
+
+  void (async () => {
+    try {
+      await updateMatchedTemplateFromForm();
+      showToast(`Updated template “${matchedTemplate!.name}”`);
+      saveButton.setAttribute(NATIVE_SAVE_ATTR, "1");
+      saveButton.click();
+    } catch (error) {
+      if (isExtensionContextInvalidated(error)) {
+        showExtensionRefreshBanner();
+        window.alert("Refresh this Calendar tab, then try saving again.");
+        return;
+      }
+      window.alert(
+        error instanceof Error ? error.message : "Could not update template.",
+      );
+    } finally {
+      saveInFlight = false;
+    }
+  })();
+}
+
+function bindSaveIntercept(saveButton: HTMLElement): void {
+  if (saveClickBound === saveButton) {
+    return;
+  }
+  saveClickBound?.removeEventListener("click", onSaveClickCapture, true);
+  saveClickBound = saveButton;
+  saveButton.addEventListener("click", onSaveClickCapture, true);
+}
+
 function enterMatchedMode(saveButton: HTMLElement, template: EventTemplate): void {
   matchedTemplate = template;
+  bindSaveIntercept(saveButton);
   if (labeledSaveButton !== saveButton || !originalSaveLabel) {
     originalSaveLabel = {
       text: (saveButton.textContent ?? "Save").trim() || "Save",
@@ -96,6 +169,8 @@ function enterMatchedMode(saveButton: HTMLElement, template: EventTemplate): voi
 
 function leaveMatchedMode(): void {
   matchedTemplate = null;
+  saveClickBound?.removeEventListener("click", onSaveClickCapture, true);
+  saveClickBound = null;
   if (labeledSaveButton && originalSaveLabel) {
     setSaveLabel(labeledSaveButton, originalSaveLabel.text);
     if (originalSaveLabel.aria == null) {
@@ -245,7 +320,9 @@ function openMenuNear(anchor: HTMLElement): void {
           event.stopImmediatePropagation();
           closeMenu();
           const { saveButton } = findSaveControls(document);
-          (saveButton ?? labeledSaveButton)?.click();
+          const nativeSaveButton = saveButton ?? labeledSaveButton;
+          nativeSaveButton?.setAttribute(NATIVE_SAVE_ATTR, "1");
+          nativeSaveButton?.click();
           return;
         }
         if (target.closest('[data-gcet-action="save-as-template"]')) {
@@ -321,6 +398,9 @@ function tryAttach(): void {
   const existing = document.getElementById(BTN_ID);
   const { saveButton, moreActions } = findSaveControls(document);
   if (saveButton) {
+    if (matchedTemplate) {
+      bindSaveIntercept(saveButton);
+    }
     if (existing?.dataset.gcetPlacement === "save") {
       return;
     }

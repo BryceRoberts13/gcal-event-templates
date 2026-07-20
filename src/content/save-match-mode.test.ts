@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { listTemplates } from "../store/template-store";
+import { listTemplates, upsertTemplate } from "../store/template-store";
 import { watchForSaveTemplateControl, reevaluateSaveMatch } from "./save-as-template";
 
 vi.mock("../store/template-store", async () => {
@@ -214,5 +214,39 @@ describe("save match mode UI", () => {
 
     saveOnly?.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, cancelable: true }));
     expect(nativeSave).toHaveBeenCalledOnce();
+  });
+
+  it("updates matched template then clicks native Save", async () => {
+    const { save } = mountEditor("Gym");
+    const nativeHandler = vi.fn();
+    save.addEventListener("click", nativeHandler);
+
+    await reevaluateSaveMatch();
+
+    save.click();
+    await vi.waitFor(() => expect(upsertTemplate).toHaveBeenCalled());
+
+    expect(upsertTemplate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: "gym",
+        name: "Gym",
+        keywords: ["workout"],
+      }),
+    );
+    await vi.waitFor(() => expect(nativeHandler).toHaveBeenCalled());
+  });
+
+  it("does not native-save when upsert fails", async () => {
+    vi.mocked(upsertTemplate).mockRejectedValueOnce(new Error("storage down"));
+    const alertSpy = vi.spyOn(window, "alert").mockImplementation(() => undefined);
+    const { save } = mountEditor("Gym");
+    const nativeHandler = vi.fn();
+    save.addEventListener("click", nativeHandler);
+
+    await reevaluateSaveMatch();
+    save.click();
+    await vi.waitFor(() => expect(alertSpy).toHaveBeenCalled());
+    expect(nativeHandler).not.toHaveBeenCalled();
+    alertSpy.mockRestore();
   });
 });
