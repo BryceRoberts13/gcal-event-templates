@@ -1,0 +1,83 @@
+<div id="sidebar">
+  <div>Booking pages</div>
+  <div id="my-calendars">
+    <div class="header">
+      <span>My calendars</span>
+      <button type="button" aria-label="Collapse My calendars">^</button>
+    </div>
+    <div id="calendar-list">
+      <div role="treeitem">
+        <div role="checkbox" aria-checked="true" aria-label="Bryce Roberts">Bryce Roberts</div>
+      </div>
+      <div role="treeitem">
+        <div role="checkbox" aria-checked="false" aria-label="Birthdays">Birthdays</div>
+      </div>
+    </div>
+  </div>
+  <div id="other-calendars">
+    <div class="header"><span>Other calendars</span></div>
+  </div>
+</div>
+
+<div id="grid">
+  <div
+    id="chip-composite"
+    role="button"
+    data-eventid="evt_composite"
+    aria-label="Composite photos, Wednesday, October 14, 11:00 AM to 1:00 PM, Delta Tau Delta 2026"
+  >
+    <span>Composite photos</span>
+  </div>
+  <div
+    id="chip-pset"
+    role="button"
+    data-eventid="evt_pset"
+    aria-label="1210 pset 2 checkoff, Wednesday, October 14, 5:00 PM to 6:00 PM"
+  >
+    <span>1210 pset 2 checkoff</span>
+  </div>
+  <div
+    id="chip-office-am"
+    role="button"
+    data-eventid="evt_office_am"
+    aria-label="Office hours, Wednesday, October 14, 11:00 AM to 12:00 PM"
+  >
+    <span>Office hours</span>
+  </div>
+  <div
+    id="chip-office-pm"
+    role="button"
+    data-eventid="evt_office_pm"
+    aria-label="Office hours, Wednesday, October 14, 3:00 PM to 4:00 PM"
+  >
+    <span>Office hours</span>
+  </div>
+</div>
+
+<div id="event-card" role="dialog" aria-label="Composite photos">
+  <button type="button" aria-label="Email guests"></button>
+  <div
+    role="button"
+    aria-label="Options"
+    aria-expanded="true"
+    aria-haspopup="menu"
+    aria-controls="event-options"
+  ></div>
+  <button type="button" id="close-event" aria-label="Close"></button>
+  <h2>Composite photos</h2>
+  <div><span>Wednesday, October 14 · 11:00am – 1:00pm</span></div>
+  <div><span>Delta Tau Delta 2026</span></div>
+  <div><span>Created by: elwincessna@gmail.com</span></div>
+</div>
+
+<div id="event-options" role="menu" aria-label="Options">
+  <div role="menuitem"><span>Print</span></div>
+  <div role="menuitem"><span>Duplicate</span></div>
+  <div role="menuitem"><span>Copy to Bryce Roberts</span></div>
+  <div role="menuitem"><span>Copy to Fall 2026 Classes</span></div>
+  <div role="menuitem"><span>Report as spam</span></div>
+</div>
+
+<div id="color-menu" role="menu" aria-label="Event colors">
+  <div role="menuitemradio" aria-label="Basil">Basil</div>
+</div>

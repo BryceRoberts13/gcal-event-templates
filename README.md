@@ -25,6 +25,8 @@ Then open `chrome://extensions`, enable **Developer mode**, click **Load unpacke
 - **Options page CRUD** — add, edit, delete, and reorder templates via `chrome://extensions` → Options
 - **Import / export JSON** — backup templates or move them between machines without sync
 - **Default templates** — ships with example templates on first install so the dropdown is usable immediately
+- **Hide event** — the event ⋮ menu includes **Hide event**. Hidden events disappear from the grid on this browser
+- **Show hidden** — a checkbox at the top of **My calendars** reveals hidden events (dimmed) so you can open one and choose **Unhide event**
 
 ## Development
 
@@ -50,11 +52,16 @@ Run through this checklist after changes or when Google Calendar updates its UI.
 | 7 | Templates persist across browser restart | |
 | 8 | `chrome.storage.sync` syncs to second profile (optional) | |
 | 9 | Full event editor title field also gets combobox | |
+| 10 | Event ⋮ menu shows **Hide event**; choosing it removes that event from the grid | |
+| 11 | **Show hidden** sits with My calendars and brings hidden events back, dimmed | |
+| 12 | **Unhide event** in the ⋮ menu restores a dimmed event | |
 
 ## Known limitations
 
 - **Color and description fields may not appear** in the quick-create mini popover depending on Google Calendar layout. When those fields are absent, the extension fills what it can find and skips the rest.
-- **DOM selectors are fragile** — Google Calendar UI changes can break field detection. If fill stops working after a GCal update, check `src/gcal/dom-adapter.ts` first.
+- **DOM selectors are fragile** — Google Calendar UI changes can break field detection. If fill stops working after a GCal update, check `src/gcal/dom-adapter.ts` first. The hide-event menu looks for the event options menu that contains **Print** and **Duplicate**.
+- **Hiding is local to this browser.** It is stored in `chrome.storage.local` and does not change the event on Google Calendar, so the phone app and other browsers still show it.
+- **Recurring events follow Google's event id.** Hiding one chip hides every visible chip that shares that id.
 
 ## Selector maintenance
 

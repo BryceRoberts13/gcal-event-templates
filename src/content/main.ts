@@ -7,6 +7,7 @@ import {
 import { listTemplates } from "../store/template-store";
 import { DEFAULT_TEMPLATES, type EventTemplate } from "../types";
 import { mountTemplateCombobox } from "./combobox";
+import { startHiddenEvents } from "./hide-events";
 import { showExtensionRefreshBanner } from "./refresh-banner";
 import { watchForSaveTemplateControl } from "./save-as-template";
 
@@ -89,6 +90,7 @@ watchForEventTitleInputs((titleInput) => {
 });
 
 watchForSaveTemplateControl();
+startHiddenEvents();
 
 window.setInterval(() => {
   if (!isExtensionContextValid()) {

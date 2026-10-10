@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Google Calendar Event Templates",
   "version": "0.3.2",
-  "description": "Searchable event templates in Google Calendar's create-event title field",
+  "description": "Searchable event templates in Google Calendar, and hide individual events from the grid",
   "permissions": ["storage", "tabs"],
   "host_permissions": ["https://calendar.google.com/*"],
   "action": {
