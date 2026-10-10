@@ -1,5 +1,6 @@
 import {
   HIDE_EVENT_ACTION,
+  HIDE_EVENT_ROW_ID,
   SHOW_HIDDEN_ID,
   dismissEventPopover,
   findCardForHideTarget,
@@ -242,12 +243,17 @@ export function startHiddenEvents(options: HiddenEventsOptions = {}): () => void
   };
   const observer = new MutationObserver(schedule);
   observer.observe(doc.documentElement, { childList: true, subtree: true });
+  doc.addEventListener("scroll", schedule, true);
+  window.addEventListener("resize", schedule);
   const intervalId = window.setInterval(sync, 1000);
 
   return () => {
     observer.disconnect();
     window.clearTimeout(scheduled);
     window.clearInterval(intervalId);
+    doc.removeEventListener("scroll", schedule, true);
+    window.removeEventListener("resize", schedule);
+    doc.getElementById(HIDE_EVENT_ROW_ID)?.remove();
     doc.removeEventListener("pointerdown", remember, true);
     doc.removeEventListener("mousedown", remember, true);
     doc.removeEventListener("keydown", remember, true);

@@ -3,14 +3,15 @@ import { resolve } from "node:path";
 import { beforeEach, describe, expect, it } from "vitest";
 import type { HiddenEventStore } from "../types";
 import {
+  anchorHideEventRow,
   applyHiddenFlags,
   buildHiddenRecord,
   chipMatches,
   findEventOptionsMenus,
   findOpenEventCard,
+  findOptionsMenuAnchor,
   findShowHiddenMountPoint,
   hideEvent,
-  injectHideMenuItem,
   isEventOptionsMenu,
   readEventCard,
   resolveActiveChip,
@@ -25,9 +26,34 @@ function emptyStore(): HiddenEventStore {
   return { schemaVersion: 1, showHidden: false, events: [] };
 }
 
+function box(top: number, left = 400, width = 280, height = 44): DOMRect {
+  return {
+    x: left,
+    y: top,
+    left,
+    top,
+    right: left + width,
+    bottom: top + height,
+    width,
+    height,
+    toJSON() {
+      return {};
+    },
+  } as DOMRect;
+}
+
+function layoutOptionsMenu(): void {
+  const rows = Array.from(document.querySelectorAll("#event-options [role='menuitem']"));
+  rows.forEach((row, index) => {
+    const top = 120 + index * 48;
+    (row as HTMLElement).getBoundingClientRect = () => box(top);
+  });
+}
+
 describe("hidden event identity", () => {
   beforeEach(() => {
     document.body.innerHTML = fixture;
+    layoutOptionsMenu();
   });
 
   it("reads the open event card title, time, and calendar", () => {
@@ -48,19 +74,39 @@ describe("hidden event identity", () => {
     expect(findEventOptionsMenus(document).map((menu) => menu.id)).toEqual(["event-options"]);
   });
 
-  it("injects Hide event once, styled from the native menu item", () => {
+  it("anchors Hide event under the open menu without editing Calendar's menu", () => {
     const menu = document.getElementById("event-options") as HTMLElement;
-    const item = injectHideMenuItem(menu, "Hide event");
-    expect(item?.textContent).toContain("Hide event");
-    expect(menu.querySelectorAll('[role="menuitem"]')).toHaveLength(6);
-    expect(item?.querySelector("span")?.textContent).toBe("Hide event");
+    const anchor = findOptionsMenuAnchor(document);
+    expect(anchor?.top).toBe(120 + 4 * 48 + 44);
 
-    injectHideMenuItem(menu, "Unhide event");
-    expect(menu.querySelectorAll("[data-gcet-action='hide-event']")).toHaveLength(1);
-    expect(
-      menu.querySelector("[data-gcet-action='hide-event']")?.textContent?.replace(/\s+/g, " ").trim(),
-    ).toBe("Unhide event");
+    const row = anchorHideEventRow(document, "Hide event");
+    expect(row?.textContent).toBe("Hide event");
+    expect(row?.parentElement).toBe(document.body);
+    expect(menu.querySelector("[data-gcet-action='hide-event']")).toBeNull();
+    expect(row?.style.top).toBe(`${anchor?.top}px`);
+    expect(row?.style.width).toBe("280px");
+
+    anchorHideEventRow(document, "Unhide event");
+    expect(document.querySelectorAll("[data-gcet-action='hide-event']")).toHaveLength(1);
+    expect(document.getElementById("gcet-hide-event-row")?.textContent).toBe("Unhide event");
     expect(document.getElementById("color-menu")?.textContent).not.toContain("Hide event");
+  });
+
+  it("finds a Print/Duplicate menu that has no ARIA roles", () => {
+    document.getElementById("event-options")?.remove();
+    const plain = document.createElement("div");
+    plain.id = "plain-menu";
+    plain.innerHTML = "<div>Print</div><div>Duplicate</div><div>Report as spam</div>";
+    document.body.appendChild(plain);
+    Array.from(plain.children).forEach((row, index) => {
+      (row as HTMLElement).getBoundingClientRect = () => box(200 + index * 40, 500, 260, 36);
+    });
+
+    const anchor = findOptionsMenuAnchor(document);
+    expect(anchor).not.toBeNull();
+    expect(anchor?.left).toBe(500);
+    expect(anchor?.width).toBe(260);
+    expect(document.getElementById("gcet-hide-event-row")).toBeNull();
   });
 
   it("places Show hidden at the top of the My calendars list", () => {
@@ -139,7 +185,7 @@ describe("hidden event identity", () => {
     syncHiddenCalendarUi(document, store, chip);
 
     expect(document.documentElement.getAttribute("data-gcet-show-hidden")).toBe("true");
-    expect(document.getElementById("event-options")?.textContent).toContain("Unhide event");
+    expect(document.getElementById("gcet-hide-event-row")?.textContent).toBe("Unhide event");
     expect(chip.getAttribute("data-gcet-hidden")).toBe("true");
   });
 });

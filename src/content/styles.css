@@ -250,6 +250,24 @@ button.gcet-show-hidden[aria-pressed="true"] .gcet-show-hidden-box svg {
   line-height: 16px;
 }
 
-.gcet-hide-event-item {
+button.gcet-hide-event-row {
+  position: fixed;
+  z-index: 2147483647;
+  box-sizing: border-box;
+  margin: 0;
+  border: 0;
+  background: #fff;
+  color: #202124;
+  text-align: left;
   cursor: pointer;
+  font: 16px/24px "Google Sans", Roboto, Arial, sans-serif;
+  padding: 16px 16px 18px;
+  border-radius: 0 0 12px 12px;
+  box-shadow: 0 10px 18px rgba(60, 64, 67, 0.28);
+}
+
+button.gcet-hide-event-row:hover,
+button.gcet-hide-event-row:focus-visible {
+  background: #f1f3f4;
+  outline: none;
 }

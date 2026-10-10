@@ -22,6 +22,24 @@ describe("startHiddenEvents", () => {
     vi.setSystemTime(new Date("2026-10-10T12:00:00Z"));
     document.body.innerHTML = fixture;
     document.documentElement.removeAttribute("data-gcet-show-hidden");
+    const rows = Array.from(document.querySelectorAll("#event-options [role='menuitem']"));
+    rows.forEach((row, index) => {
+      const top = 120 + index * 48;
+      (row as HTMLElement).getBoundingClientRect = () =>
+        ({
+          x: 400,
+          y: top,
+          left: 400,
+          top,
+          right: 680,
+          bottom: top + 44,
+          width: 280,
+          height: 44,
+          toJSON() {
+            return {};
+          },
+        }) as DOMRect;
+    });
   });
 
   afterEach(() => {

@@ -1,6 +1,7 @@
 import type { HiddenEventRecord, HiddenEventStore } from "../types";
 
 export const HIDE_EVENT_ACTION = "hide-event";
+export const HIDE_EVENT_ROW_ID = "gcet-hide-event-row";
 export const SHOW_HIDDEN_ID = "gcet-show-hidden";
 
 const WEEKDAY =
@@ -355,75 +356,145 @@ export function resolveActiveChip(
   return null;
 }
 
-function menuEntries(menu: Element): HTMLElement[] {
-  const explicit = Array.from(
-    menu.querySelectorAll('[role="menuitem"], [role="option"]'),
-  ).filter((element): element is HTMLElement => element instanceof HTMLElement);
-  if (explicit.length > 0) {
-    return explicit;
+function optionLabel(element: HTMLElement): string {
+  if (element.id === HIDE_EVENT_ROW_ID || element.closest(`#${HIDE_EVENT_ROW_ID}`)) {
+    return "";
   }
-  return Array.from(menu.children).filter(
-    (element): element is HTMLElement =>
-      element instanceof HTMLElement && (element.textContent ?? "").trim().length > 0,
-  );
+  const text = (element.textContent ?? "").replace(/\s+/g, " ").trim().toLowerCase();
+  const aria = (element.getAttribute("aria-label") ?? "").replace(/\s+/g, " ").trim().toLowerCase();
+  const raw = aria || text;
+  if (!raw || raw.length > 48) {
+    return "";
+  }
+  if (raw === "print" || raw.startsWith("print ")) {
+    return "print";
+  }
+  if (raw === "duplicate" || raw.startsWith("duplicate ")) {
+    return "duplicate";
+  }
+  if (raw === "report as spam" || raw.startsWith("report as spam")) {
+    return "report as spam";
+  }
+  return "";
 }
 
-function itemLabel(item: HTMLElement): string {
-  const text = (item.textContent ?? "").replace(/\s+/g, " ").trim();
-  if (text) {
-    return text;
+function walkElements(root: ParentNode, visit: (element: HTMLElement) => void): void {
+  for (const node of root.querySelectorAll("*")) {
+    if (!(node instanceof HTMLElement)) {
+      continue;
+    }
+    visit(node);
+    if (node.shadowRoot) {
+      walkElements(node.shadowRoot, visit);
+    }
   }
-  return (item.getAttribute("aria-label") ?? "").trim();
+}
+
+function parentAcross(element: HTMLElement): HTMLElement | null {
+  if (element.parentElement) {
+    return element.parentElement;
+  }
+  const root = element.getRootNode();
+  if (root instanceof ShadowRoot && root.host instanceof HTMLElement) {
+    return root.host;
+  }
+  return null;
+}
+
+/** The row that owns this label, not the whole menu. */
+function optionRow(element: HTMLElement): HTMLElement {
+  let node = element;
+  let parent = parentAcross(node);
+  while (parent && parent !== document.body) {
+    const parentLabel = optionLabel(parent);
+    const nodeLabel = optionLabel(node);
+    if (parentLabel && parentLabel === nodeLabel) {
+      node = parent;
+      parent = parentAcross(node);
+      continue;
+    }
+    const role = parent.getAttribute("role");
+    if (role === "menuitem" || role === "option" || parent.tagName === "LI") {
+      return parent;
+    }
+    break;
+  }
+  return node;
+}
+
+function isOnScreen(element: HTMLElement): boolean {
+  const rect = element.getBoundingClientRect();
+  return rect.width >= 40 && rect.height >= 12 && rect.bottom > 0 && rect.right > 0;
+}
+
+export interface OptionsMenuAnchor {
+  rows: HTMLElement[];
+  left: number;
+  width: number;
+  top: number;
+}
+
+/**
+ * Google Calendar rebuilds the ⋮ menu from its own model and drops nodes we
+ * insert. Anchor off the visible Print / Duplicate rows instead.
+ */
+export function findOptionsMenuAnchor(root: ParentNode): OptionsMenuAnchor | null {
+  const rows: HTMLElement[] = [];
+  walkElements(root, (element) => {
+    if (!optionLabel(element) || !isOnScreen(element)) {
+      return;
+    }
+    const row = optionRow(element);
+    if (!rows.includes(row)) {
+      rows.push(row);
+    }
+  });
+
+  const labels = new Set(rows.map((row) => optionLabel(row)).filter(Boolean));
+  if (!labels.has("print") || !labels.has("duplicate")) {
+    return null;
+  }
+
+  let left = Number.POSITIVE_INFINITY;
+  let right = 0;
+  let bottom = 0;
+  for (const row of rows) {
+    const rect = row.getBoundingClientRect();
+    left = Math.min(left, rect.left);
+    right = Math.max(right, rect.right);
+    bottom = Math.max(bottom, rect.bottom);
+  }
+
+  return {
+    rows,
+    left,
+    width: Math.max(160, right - left),
+    top: bottom,
+  };
 }
 
 export function isEventOptionsMenu(menu: Element): boolean {
-  const role = menu.getAttribute("role");
-  if (role !== "menu" && role !== "listbox") {
-    return false;
-  }
-  const labels = new Set(
-    menuEntries(menu)
-      .filter((item) => !item.hasAttribute("data-gcet-action"))
-      .map((item) => itemLabel(item).toLowerCase()),
-  );
+  const labels = new Set<string>();
+  walkElements(menu, (element) => {
+    const label = optionLabel(element);
+    if (label) {
+      labels.add(label);
+    }
+  });
   return labels.has("print") && labels.has("duplicate");
 }
 
-export function setMenuItemLabel(item: HTMLElement, label: string): void {
-  const previous = itemLabel(item);
-  const leaves = Array.from(item.querySelectorAll("*")).filter(
-    (element) => element.children.length === 0 && (element.textContent ?? "").trim().length > 0,
-  );
-  if (leaves.length > 0) {
-    const target =
-      leaves.find((element) => (element.textContent ?? "").trim() === previous) ??
-      leaves[leaves.length - 1];
-    target.textContent = label;
-  } else {
-    item.textContent = label;
+export function findEventOptionsMenus(root: ParentNode): HTMLElement[] {
+  const anchor = findOptionsMenuAnchor(root);
+  if (!anchor) {
+    return [];
   }
-  item.setAttribute("aria-label", label);
-  for (const element of item.querySelectorAll("[aria-label]")) {
-    if (element.getAttribute("aria-label") === previous) {
-      element.setAttribute("aria-label", label);
-    }
+  const menu = anchor.rows[0]?.closest('[role="menu"], [role="listbox"]');
+  if (menu instanceof HTMLElement) {
+    return [menu];
   }
-}
-
-const STRIP_ATTRS = ["id", "data-id", "jsaction", "jslog", "data-tooltip"];
-
-function stripClonedIdentity(element: HTMLElement): void {
-  for (const attr of STRIP_ATTRS) {
-    element.removeAttribute(attr);
-  }
-  for (const child of element.querySelectorAll("*")) {
-    if (!(child instanceof HTMLElement)) {
-      continue;
-    }
-    for (const attr of STRIP_ATTRS) {
-      child.removeAttribute(attr);
-    }
-  }
+  const parent = anchor.rows[0]?.parentElement;
+  return parent ? [parent] : [];
 }
 
 export function hideMenuLabel(
@@ -436,33 +507,35 @@ export function hideMenuLabel(
   return "Hide event";
 }
 
-export function injectHideMenuItem(menu: HTMLElement, label: string): HTMLElement | null {
-  if (!isEventOptionsMenu(menu)) {
+/** A row painted on top of the open ⋮ menu, not inside Calendar's menu tree. */
+export function anchorHideEventRow(doc: Document, label: string): HTMLElement | null {
+  const anchor = findOptionsMenuAnchor(doc);
+  const existing = doc.getElementById(HIDE_EVENT_ROW_ID);
+  if (!anchor) {
+    existing?.remove();
     return null;
   }
-  const existing = menu.querySelector(`[data-gcet-action="${HIDE_EVENT_ACTION}"]`);
-  if (existing instanceof HTMLElement) {
-    setMenuItemLabel(existing, label);
-    return existing;
+
+  let row: HTMLButtonElement;
+  if (existing instanceof HTMLButtonElement) {
+    row = existing;
+  } else {
+    existing?.remove();
+    row = doc.createElement("button");
+    row.type = "button";
+    row.id = HIDE_EVENT_ROW_ID;
+    row.className = "gcet-hide-event-row";
+    row.setAttribute("data-gcet-action", HIDE_EVENT_ACTION);
+    row.setAttribute("role", "menuitem");
+    doc.body.appendChild(row);
   }
 
-  const sample = menuEntries(menu).find((item) => !item.hasAttribute("data-gcet-action"));
-  const item = sample ? (sample.cloneNode(true) as HTMLElement) : document.createElement("div");
-  stripClonedIdentity(item);
-  item.setAttribute("role", item.getAttribute("role") ?? "menuitem");
-  item.setAttribute("data-gcet-action", HIDE_EVENT_ACTION);
-  item.classList.add("gcet-hide-event-item");
-  item.removeAttribute("aria-disabled");
-  setMenuItemLabel(item, label);
-  menu.appendChild(item);
-  return item;
-}
-
-export function findEventOptionsMenus(root: ParentNode): HTMLElement[] {
-  return Array.from(root.querySelectorAll('[role="menu"], [role="listbox"]')).filter(
-    (element): element is HTMLElement =>
-      element instanceof HTMLElement && isEventOptionsMenu(element),
-  );
+  row.textContent = label;
+  row.setAttribute("aria-label", label);
+  row.style.left = `${anchor.left}px`;
+  row.style.top = `${anchor.top}px`;
+  row.style.width = `${anchor.width}px`;
+  return row;
 }
 
 export function findMyCalendarsHeader(root: ParentNode): HTMLElement | null {
@@ -615,9 +688,7 @@ export function syncHiddenCalendarUi(
   applyHiddenFlags(doc, store);
   const record = hiddenMenuRecord(doc, lastChip);
   const label = hideMenuLabel(store, record);
-  for (const menu of findEventOptionsMenus(doc)) {
-    injectHideMenuItem(menu, label);
-  }
+  anchorHideEventRow(doc, label);
 }
 
 export function rememberChipTarget(target: EventTarget | null): HTMLElement | null {
