@@ -153,4 +153,4 @@ chrome.runtime.onMessage.addListener((message: Message, _sender, sendResponse) =
   return false;
 });
 
-console.info("[gcal-event-templates] service worker ready (v0.3.2)");
+console.info("[gcal-event-templates] service worker ready (v0.4.0)");

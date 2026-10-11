@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Google Calendar Event Templates",
-  "version": "0.3.2",
-  "description": "Searchable event templates in Google Calendar, and hide individual events from the grid",
+  "version": "0.4.0",
+  "description": "Hide individual events, with Show hidden under My calendars. Also searchable event templates.",
   "permissions": ["storage", "tabs"],
   "host_permissions": ["https://calendar.google.com/*"],
   "action": {

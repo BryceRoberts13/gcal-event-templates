@@ -118,4 +118,4 @@ try {
   showExtensionRefreshBanner();
 }
 
-console.info("[gcal-event-templates] content script ready");
+console.info("[gcal-event-templates] content script ready (v0.4.0)");

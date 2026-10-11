@@ -18,6 +18,8 @@ npm run build
 
 Then open `chrome://extensions`, enable **Developer mode**, click **Load unpacked**, and select the `dist/` folder.
 
+The card should say **0.4.0** and “Hide individual events, with Show hidden under My calendars.” Version 0.3.2 with the old “create-event title field” description does not include this feature. If that older card is still installed, click its reload button only after `npm run build` has refreshed the same `dist/` folder. Reloading without a new build keeps the old extension.
+
 ## Features
 
 - **Searchable combobox on title field** — drag-to-create (and full event editor) title input becomes a filterable template picker
