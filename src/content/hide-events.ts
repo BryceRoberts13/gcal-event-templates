@@ -3,10 +3,9 @@ import {
   HIDE_EVENT_ROW_ID,
   SHOW_HIDDEN_ID,
   dismissEventPopover,
-  findCardForHideTarget,
   findShowHiddenMountPoint,
-  hiddenMenuRecord,
   nextStoreAfterHideAction,
+  openEventContext,
   rememberChipTarget,
   syncHiddenCalendarUi,
 } from "../gcal/hidden-events";
@@ -169,15 +168,14 @@ export function startHiddenEvents(options: HiddenEventsOptions = {}): () => void
     event.preventDefault();
     event.stopImmediatePropagation();
 
-    const card = findCardForHideTarget(target, doc);
-    const record = hiddenMenuRecord(doc, lastChip, target);
+    const { card, chip, record } = openEventContext(doc, lastChip, target);
     if (!record) {
       window.alert("Couldn't identify this event to hide.");
       return;
     }
     const stamped = { ...record, hiddenAt: now() };
     dirty = true;
-    state = nextStoreAfterHideAction(state, stamped);
+    state = nextStoreAfterHideAction(state, stamped, chip);
     sync();
     dismissEventPopover(doc, card);
     void persist();

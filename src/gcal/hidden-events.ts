@@ -497,14 +497,30 @@ export function findEventOptionsMenus(root: ParentNode): HTMLElement[] {
   return parent ? [parent] : [];
 }
 
+/** True when this open event is already in the hidden set, including by chip flag. */
+export function eventIsHidden(
+  store: HiddenEventStore,
+  record: HiddenEventRecord | null,
+  chip: HTMLElement | null,
+): boolean {
+  if (chip?.getAttribute("data-gcet-hidden") === "true") {
+    return true;
+  }
+  if (chip && store.events.some((existing) => chipMatches(chip, existing))) {
+    return true;
+  }
+  if (record && store.events.some((existing) => sameEvent(existing, record))) {
+    return true;
+  }
+  return false;
+}
+
 export function hideMenuLabel(
   store: HiddenEventStore,
   record: HiddenEventRecord | null,
+  chip: HTMLElement | null = null,
 ): "Hide event" | "Unhide event" {
-  if (record && isEventHidden(store, record)) {
-    return "Unhide event";
-  }
-  return "Hide event";
+  return eventIsHidden(store, record, chip) ? "Unhide event" : "Hide event";
 }
 
 /** A row painted on top of the open ⋮ menu, not inside Calendar's menu tree. */
@@ -670,10 +686,22 @@ export function hiddenMenuRecord(
   lastChip: HTMLElement | null,
   target?: Element | null,
 ): HiddenEventRecord | null {
+  return openEventContext(root, lastChip, target).record;
+}
+
+export function openEventContext(
+  root: ParentNode,
+  lastChip: HTMLElement | null,
+  target?: Element | null,
+): { card: HTMLElement | null; chip: HTMLElement | null; record: HiddenEventRecord | null } {
   const card =
     (target ? findCardForHideTarget(target, root) : null) ?? findOpenEventCard(root);
   const chip = resolveActiveChip(root, card, lastChip);
-  return buildHiddenRecord({ chip, card, now: 0 });
+  return {
+    card,
+    chip,
+    record: buildHiddenRecord({ chip, card, now: 0 }),
+  };
 }
 
 export function syncHiddenCalendarUi(
@@ -686,9 +714,8 @@ export function syncHiddenCalendarUi(
     store.showHidden ? "true" : "false",
   );
   applyHiddenFlags(doc, store);
-  const record = hiddenMenuRecord(doc, lastChip);
-  const label = hideMenuLabel(store, record);
-  anchorHideEventRow(doc, label);
+  const { record, chip } = openEventContext(doc, lastChip);
+  anchorHideEventRow(doc, hideMenuLabel(store, record, chip));
 }
 
 export function rememberChipTarget(target: EventTarget | null): HTMLElement | null {
@@ -715,6 +742,15 @@ export function dismissEventPopover(doc: Document, card: HTMLElement | null): vo
 export function nextStoreAfterHideAction(
   store: HiddenEventStore,
   record: HiddenEventRecord,
+  chip: HTMLElement | null = null,
 ): HiddenEventStore {
-  return isEventHidden(store, record) ? unhideEvent(store, record) : hideEvent(store, record);
+  if (!eventIsHidden(store, record, chip)) {
+    return hideEvent(store, record);
+  }
+  return {
+    ...store,
+    events: store.events.filter(
+      (existing) => !sameEvent(existing, record) && !(chip && chipMatches(chip, existing)),
+    ),
+  };
 }

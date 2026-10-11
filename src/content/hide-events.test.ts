@@ -101,6 +101,13 @@ describe("startHiddenEvents", () => {
     press(unhide);
     expect(chip.hasAttribute("data-gcet-hidden")).toBe(false);
     expect(saved.at(-1)?.events).toHaveLength(0);
+    expect(unhide.textContent).toContain("Hide event");
+
+    vi.setSystemTime(new Date("2026-10-10T12:00:04Z"));
+    press(unhide);
+    expect(chip.getAttribute("data-gcet-hidden")).toBe("true");
+    expect(unhide.textContent).toContain("Unhide event");
+    expect(saved.at(-1)?.events).toHaveLength(1);
   });
 
   it("restores previously hidden events after load", async () => {

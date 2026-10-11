@@ -12,7 +12,9 @@ import {
   findOptionsMenuAnchor,
   findShowHiddenMountPoint,
   hideEvent,
+  hideMenuLabel,
   isEventOptionsMenu,
+  nextStoreAfterHideAction,
   readEventCard,
   resolveActiveChip,
   sameEvent,
@@ -172,6 +174,36 @@ describe("hidden event identity", () => {
     const hidden = hideEvent(emptyStore(), record);
     expect(sameEvent(hidden.events[0], record)).toBe(true);
     expect(unhideEvent(hidden, record).events).toHaveLength(0);
+  });
+
+  it("toggles the same menu row between Hide event and Unhide event", () => {
+    const chip = document.getElementById("chip-composite") as HTMLElement;
+    const card = findOpenEventCard(document);
+    const record = buildHiddenRecord({ chip, card, now: 1 })!;
+    const row = anchorHideEventRow(document, "Hide event")!;
+
+    let store = nextStoreAfterHideAction(emptyStore(), record, chip);
+    applyHiddenFlags(document, store);
+    const hiddenLabel = hideMenuLabel(store, record, chip);
+    anchorHideEventRow(document, hiddenLabel);
+
+    expect(document.getElementById("gcet-hide-event-row")).toBe(row);
+    expect(row.textContent).toBe("Unhide event");
+    expect(chip.getAttribute("data-gcet-hidden")).toBe("true");
+
+    const reopened = {
+      ...record,
+      eventId: null,
+      ariaLabel: "",
+    };
+    expect(hideMenuLabel(store, reopened, chip)).toBe("Unhide event");
+    store = nextStoreAfterHideAction(store, reopened, chip);
+    applyHiddenFlags(document, store);
+    anchorHideEventRow(document, hideMenuLabel(store, reopened, chip));
+
+    expect(row.textContent).toBe("Hide event");
+    expect(store.events).toHaveLength(0);
+    expect(chip.hasAttribute("data-gcet-hidden")).toBe(false);
   });
 
   it("syncs the menu label and the show-hidden flag", () => {
