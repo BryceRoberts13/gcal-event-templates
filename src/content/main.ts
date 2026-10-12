@@ -118,4 +118,6 @@ try {
   showExtensionRefreshBanner();
 }
 
-console.info("[gcal-event-templates] content script ready (v0.4.0)");
+const contentVersion = globalThis.chrome?.runtime?.getManifest?.().version ?? "dev";
+document.documentElement.dataset.gcetVersion = contentVersion;
+console.info(`[gcal-event-templates] content script ready (v${contentVersion})`);

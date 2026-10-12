@@ -3,8 +3,9 @@ import {
   HIDE_EVENT_ROW_ID,
   SHOW_HIDDEN_ID,
   dismissEventPopover,
-  findShowHiddenMountPoint,
+  findShowHiddenAnchor,
   nextStoreAfterHideAction,
+  reserveShowHiddenGap,
   openEventContext,
   rememberChipTarget,
   syncHiddenCalendarUi,
@@ -95,20 +96,28 @@ function mountShowHiddenButton(
   store: HiddenEventStore,
   onToggle: () => void,
 ): void {
-  const mount = findShowHiddenMountPoint(doc);
+  const anchor = findShowHiddenAnchor(doc);
   const existing = doc.getElementById(SHOW_HIDDEN_ID);
-  if (!mount) {
+  if (!anchor) {
+    existing?.remove();
     return;
   }
+
+  let button: HTMLButtonElement;
   if (existing instanceof HTMLButtonElement) {
-    if (existing.parentElement !== mount.parent || mount.before !== existing) {
-      mount.parent.insertBefore(existing, mount.before);
-    }
-    renderShowHiddenButton(existing, store);
-    return;
+    button = existing;
+  } else {
+    existing?.remove();
+    button = createShowHiddenButton(doc, store, onToggle);
   }
-  const button = createShowHiddenButton(doc, store, onToggle);
-  mount.parent.insertBefore(button, mount.before);
+  if (button.parentElement !== doc.body) {
+    doc.body.appendChild(button);
+  }
+  renderShowHiddenButton(button, store);
+  button.style.left = `${Math.round(anchor.left)}px`;
+  button.style.top = `${Math.round(anchor.top)}px`;
+  button.style.width = `${Math.round(anchor.width)}px`;
+  reserveShowHiddenGap(doc);
 }
 
 export function startHiddenEvents(options: HiddenEventsOptions = {}): () => void {
@@ -259,5 +268,13 @@ export function startHiddenEvents(options: HiddenEventsOptions = {}): () => void
     window.removeEventListener("mousedown", onHideGesture, true);
     runtime?.onMessage?.removeListener(onMessage);
     doc.getElementById(SHOW_HIDDEN_ID)?.remove();
+    for (const node of doc.querySelectorAll("[data-gcet-show-hidden-gap]")) {
+      if (!(node instanceof HTMLElement)) {
+        continue;
+      }
+      node.style.paddingTop = node.dataset.gcetPreviousPaddingTop ?? "";
+      delete node.dataset.gcetPreviousPaddingTop;
+      node.removeAttribute("data-gcet-show-hidden-gap");
+    }
   };
 }

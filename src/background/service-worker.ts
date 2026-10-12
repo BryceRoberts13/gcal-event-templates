@@ -153,4 +153,5 @@ chrome.runtime.onMessage.addListener((message: Message, _sender, sendResponse) =
   return false;
 });
 
-console.info("[gcal-event-templates] service worker ready (v0.4.0)");
+const workerVersion = globalThis.chrome?.runtime?.getManifest?.().version ?? "dev";
+console.info(`[gcal-event-templates] service worker ready (v${workerVersion})`);

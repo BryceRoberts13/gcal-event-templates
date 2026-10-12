@@ -10,8 +10,9 @@ import {
   findEventOptionsMenus,
   findOpenEventCard,
   findOptionsMenuAnchor,
-  findShowHiddenMountPoint,
+  findShowHiddenAnchor,
   hideEvent,
+  reserveShowHiddenGap,
   hideMenuLabel,
   isEventOptionsMenu,
   nextStoreAfterHideAction,
@@ -111,10 +112,50 @@ describe("hidden event identity", () => {
     expect(document.getElementById("gcet-hide-event-row")).toBeNull();
   });
 
-  it("places Show hidden at the top of the My calendars list", () => {
-    const mount = findShowHiddenMountPoint(document);
-    expect(mount?.parent.id).toBe("calendar-list");
-    expect(mount?.before).toBe(document.querySelector("#calendar-list > [role='treeitem']"));
+  it("pins Show hidden under the My calendars heading", () => {
+    const header = Array.from(document.querySelectorAll("span")).find(
+      (element) => element.textContent === "My calendars",
+    ) as HTMLElement;
+    header.getBoundingClientRect = () => box(180, 16, 200, 24);
+    const section = document.getElementById("my-calendars") as HTMLElement;
+    section.getBoundingClientRect = () => box(160, 8, 248, 320);
+
+    const anchor = findShowHiddenAnchor(document);
+    expect(anchor).toEqual({ left: 16, top: 208, width: 240 });
+  });
+
+  it("pads the calendar list so Show hidden does not cover the first calendar", () => {
+    const header = Array.from(document.querySelectorAll("span")).find(
+      (element) => element.textContent === "My calendars",
+    ) as HTMLElement;
+    header.getBoundingClientRect = () => box(180, 16, 200, 24);
+    const list = document.getElementById("calendar-list") as HTMLElement;
+
+    reserveShowHiddenGap(document);
+    expect(list.style.paddingTop).toBe("40px");
+
+    header.getBoundingClientRect = () => box(0, 0, 0, 0);
+    reserveShowHiddenGap(document);
+    expect(list.style.paddingTop).toBe("");
+    expect(list.hasAttribute("data-gcet-show-hidden-gap")).toBe(false);
+  });
+
+  it("still offers a Show hidden position when My calendars has not been laid out", () => {
+    const anchor = findShowHiddenAnchor(document);
+    expect(anchor).toEqual({ left: 12, top: 248, width: 220 });
+  });
+
+  it("anchors Hide event to the event card when the menu text is not readable", () => {
+    document.getElementById("event-options")?.remove();
+    const card = document.getElementById("event-card") as HTMLElement;
+    card.getBoundingClientRect = () => box(80, 360, 320, 400);
+
+    const row = anchorHideEventRow(document, "Hide event");
+    expect(row?.parentElement).toBe(document.body);
+    expect(row?.textContent).toBe("Hide event");
+    expect(row?.style.left).toBe("360px");
+    expect(row?.style.top).toBe("480px");
+    expect(row?.style.width).toBe("320px");
   });
 
   it("hides only the matching event id", () => {

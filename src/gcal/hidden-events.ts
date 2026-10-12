@@ -363,17 +363,20 @@ function optionLabel(element: HTMLElement): string {
   const text = (element.textContent ?? "").replace(/\s+/g, " ").trim().toLowerCase();
   const aria = (element.getAttribute("aria-label") ?? "").replace(/\s+/g, " ").trim().toLowerCase();
   const raw = aria || text;
-  if (!raw || raw.length > 48) {
+  if (!raw || raw.length > 80) {
     return "";
   }
-  if (raw === "print" || raw.startsWith("print ")) {
+  if (/^print\b/.test(raw)) {
     return "print";
   }
-  if (raw === "duplicate" || raw.startsWith("duplicate ")) {
+  if (/^duplicate\b/.test(raw)) {
     return "duplicate";
   }
-  if (raw === "report as spam" || raw.startsWith("report as spam")) {
+  if (/^report as spam\b/.test(raw)) {
     return "report as spam";
+  }
+  if (/^copy to\b/.test(raw)) {
+    return "copy to";
   }
   return "";
 }
@@ -455,6 +458,17 @@ export function findOptionsMenuAnchor(root: ParentNode): OptionsMenuAnchor | nul
     return null;
   }
 
+  const menu = rows[0]?.closest('[role="menu"], [role="listbox"]');
+  const menuRect = menu instanceof HTMLElement ? menu.getBoundingClientRect() : null;
+  if (menuRect && menuRect.width >= 40 && menuRect.height >= 12) {
+    return {
+      rows,
+      left: menuRect.left,
+      width: Math.max(160, menuRect.width),
+      top: menuRect.bottom,
+    };
+  }
+
   let left = Number.POSITIVE_INFINITY;
   let right = 0;
   let bottom = 0;
@@ -470,6 +484,23 @@ export function findOptionsMenuAnchor(root: ParentNode): OptionsMenuAnchor | nul
     left,
     width: Math.max(160, right - left),
     top: bottom,
+  };
+}
+
+function openOptionsCardAnchor(root: ParentNode): OptionsMenuAnchor | null {
+  const card = findOpenEventCard(root);
+  if (!card) {
+    return null;
+  }
+  const rect = card.getBoundingClientRect();
+  if (rect.width < 80 || rect.height < 40 || rect.bottom <= 0 || rect.right <= 0) {
+    return null;
+  }
+  return {
+    rows: [],
+    left: rect.left,
+    width: rect.width,
+    top: rect.bottom,
   };
 }
 
@@ -525,7 +556,7 @@ export function hideMenuLabel(
 
 /** A row painted on top of the open ⋮ menu, not inside Calendar's menu tree. */
 export function anchorHideEventRow(doc: Document, label: string): HTMLElement | null {
-  const anchor = findOptionsMenuAnchor(doc);
+  const anchor = findOptionsMenuAnchor(doc) ?? openOptionsCardAnchor(doc);
   const existing = doc.getElementById(HIDE_EVENT_ROW_ID);
   if (!anchor) {
     existing?.remove();
@@ -602,13 +633,37 @@ export function findMyCalendarsSection(header: HTMLElement): HTMLElement {
   return node;
 }
 
-export function findShowHiddenMountPoint(
-  root: ParentNode,
-): { parent: HTMLElement; before: Node | null } | null {
-  const header = findMyCalendarsHeader(root);
-  if (!header) {
-    return null;
+export interface ShowHiddenAnchor {
+  left: number;
+  top: number;
+  width: number;
+}
+
+const SHOW_HIDDEN_FALLBACK: ShowHiddenAnchor = { left: 12, top: 248, width: 220 };
+
+function elementIsOnScreen(element: HTMLElement, minWidth: number, minHeight: number): boolean {
+  const rect = element.getBoundingClientRect();
+  return rect.width >= minWidth && rect.height >= minHeight && rect.bottom > 0 && rect.right > 0;
+}
+
+function hasCalendarSurface(root: ParentNode): boolean {
+  if (root.querySelector("[data-eventid]")) {
+    return true;
   }
+  const markers = ["Other calendars", "Search for people", "Booking pages", "My calendars"];
+  for (const node of root.querySelectorAll("span, div, h1, h2, h3, p, button")) {
+    if (!(node instanceof HTMLElement) || node.closest(`#${SHOW_HIDDEN_ID}`)) {
+      continue;
+    }
+    const text = (node.textContent ?? "").replace(/\s+/g, " ").trim();
+    if (markers.includes(text)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function calendarListAfter(header: HTMLElement): HTMLElement | null {
   const section = findMyCalendarsSection(header);
   const headerRow =
     header.parentElement &&
@@ -616,19 +671,51 @@ export function findShowHiddenMountPoint(
     header.parentElement !== section
       ? header.parentElement
       : header;
+  const list = headerRow.nextElementSibling;
+  return list instanceof HTMLElement ? list : null;
+}
 
-  if (headerRow.parentElement === section) {
-    const list = headerRow.nextElementSibling;
-    if (list instanceof HTMLElement) {
-      return { parent: list, before: list.firstElementChild };
-    }
-    return { parent: section, before: null };
+/**
+ * Calendar deletes nodes we insert into its sidebar. Pin Show hidden on
+ * document.body, lined up under the visible My calendars heading.
+ */
+export function findShowHiddenAnchor(root: ParentNode): ShowHiddenAnchor | null {
+  const header = findMyCalendarsHeader(root);
+  if (header && elementIsOnScreen(header, 40, 8)) {
+    const rect = header.getBoundingClientRect();
+    const section = findMyCalendarsSection(header);
+    const sectionRect = section.getBoundingClientRect();
+    const width =
+      sectionRect.width >= 120 ? Math.min(sectionRect.width - 8, 280) : Math.max(rect.width, 180);
+    return { left: rect.left, top: rect.bottom + 4, width };
   }
-
-  if (section.parentElement) {
-    return { parent: section.parentElement, before: section };
+  if (header || hasCalendarSurface(root)) {
+    return SHOW_HIDDEN_FALLBACK;
   }
   return null;
+}
+
+/** Push the calendar list down so the pinned checkbox does not cover the first calendar. */
+export function reserveShowHiddenGap(root: ParentNode): void {
+  const header = findMyCalendarsHeader(root);
+  const list = header && elementIsOnScreen(header, 40, 8) ? calendarListAfter(header) : null;
+  const marked = root.querySelectorAll("[data-gcet-show-hidden-gap]");
+  for (const node of marked) {
+    if (!(node instanceof HTMLElement) || node === list) {
+      continue;
+    }
+    node.style.paddingTop = node.dataset.gcetPreviousPaddingTop ?? "";
+    delete node.dataset.gcetPreviousPaddingTop;
+    node.removeAttribute("data-gcet-show-hidden-gap");
+  }
+  if (!list) {
+    return;
+  }
+  if (list.dataset.gcetShowHiddenGap !== "true") {
+    list.dataset.gcetPreviousPaddingTop = list.style.paddingTop;
+    list.dataset.gcetShowHiddenGap = "true";
+  }
+  list.style.paddingTop = "40px";
 }
 
 export function applyHiddenFlags(root: ParentNode, store: HiddenEventStore): void {

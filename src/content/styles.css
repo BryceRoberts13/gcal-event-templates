@@ -190,14 +190,19 @@ html[data-gcet-show-hidden="true"] [data-gcet-hidden="true"] {
 
 button.gcet-show-hidden {
   all: unset;
+  position: fixed;
+  z-index: 2147483646;
   display: flex;
   align-items: center;
   gap: 10px;
   box-sizing: border-box;
-  width: calc(100% - 8px);
-  margin: 2px 4px;
+  width: 220px;
+  margin: 0;
   padding: 6px 8px;
+  border: 1px solid #dadce0;
   border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(60, 64, 67, 0.24);
   cursor: pointer;
   font: 14px/20px "Google Sans", Roboto, Arial, sans-serif;
   color: #3c4043;

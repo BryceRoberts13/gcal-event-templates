@@ -19,6 +19,13 @@ p {
   line-height: 1.4;
 }
 
+p.version {
+  margin: 0 0 8px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #1a73e8;
+}
+
 button {
   width: 100%;
   padding: 0.55rem 1rem;

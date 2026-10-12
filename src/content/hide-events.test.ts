@@ -60,7 +60,7 @@ describe("startHiddenEvents", () => {
 
     const showHidden = document.getElementById(SHOW_HIDDEN_ID) as HTMLButtonElement;
     expect(showHidden).not.toBeNull();
-    expect(showHidden.parentElement?.id).toBe("calendar-list");
+    expect(showHidden.parentElement).toBe(document.body);
     expect(showHidden.getAttribute("aria-pressed")).toBe("false");
     expect(showHidden.textContent).toContain("Show hidden");
 

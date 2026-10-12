@@ -18,7 +18,7 @@ npm run build
 
 Then open `chrome://extensions`, enable **Developer mode**, click **Load unpacked**, and select the `dist/` folder.
 
-The card should say **0.4.0** and “Hide individual events, with Show hidden under My calendars.” Version 0.3.2 with the old “create-event title field” description does not include this feature. If that older card is still installed, click its reload button only after `npm run build` has refreshed the same `dist/` folder. Reloading without a new build keeps the old extension.
+The card must say **0.4.1** and “Hide individual events from the calendar grid, and show them again from the left sidebar.” Version **0.3.2** with the description “Searchable event templates in Google Calendar's create-event title field” does not include Hide event or Show hidden. Reload on that older card does nothing until `npm run build` has refreshed the same `dist/` folder and you load that folder (not the repo root).
 
 ## Features
 
@@ -28,7 +28,7 @@ The card should say **0.4.0** and “Hide individual events, with Show hidden un
 - **Import / export JSON** — backup templates or move them between machines without sync
 - **Default templates** — ships with example templates on first install so the dropdown is usable immediately
 - **Hide event** — the event ⋮ menu includes **Hide event**. Hidden events disappear from the grid on this browser
-- **Show hidden** — a checkbox at the top of **My calendars** reveals hidden events (dimmed) so you can open one and choose **Unhide event**
+- **Show hidden** — a checkbox pinned on the left, under **My calendars**, reveals hidden events (dimmed) so you can open one and choose **Unhide event**
 
 ## Development
 
@@ -61,7 +61,7 @@ Run through this checklist after changes or when Google Calendar updates its UI.
 ## Known limitations
 
 - **Color and description fields may not appear** in the quick-create mini popover depending on Google Calendar layout. When those fields are absent, the extension fills what it can find and skips the rest.
-- **DOM selectors are fragile** — Google Calendar UI changes can break field detection. If fill stops working after a GCal update, check `src/gcal/dom-adapter.ts` first. The hide-event menu looks for the event options menu that contains **Print** and **Duplicate**.
+- **DOM selectors are fragile** — Google Calendar UI changes can break field detection. If fill stops working after a GCal update, check `src/gcal/dom-adapter.ts` first. Hide event looks for the open menu that contains **Print** and **Duplicate**, and otherwise sits on the open event card. Show hidden is drawn on top of the left sidebar so Calendar cannot delete it.
 - **Hiding is local to this browser.** It is stored in `chrome.storage.local` and does not change the event on Google Calendar, so the phone app and other browsers still show it.
 - **Recurring events follow Google's event id.** Hiding one chip hides every visible chip that shares that id.
 
