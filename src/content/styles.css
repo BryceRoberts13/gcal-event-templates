@@ -174,3 +174,105 @@
 .gcet-refresh-banner-dismiss:hover {
   background: rgba(255, 255, 255, 0.12);
 }
+
+/* Hidden events stay in the layout but disappear until Show hidden is on. */
+html[data-gcet-show-hidden="false"] [data-gcet-hidden="true"] {
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+html[data-gcet-show-hidden="true"] [data-gcet-hidden="true"] {
+  opacity: 0.4 !important;
+  outline: 1px dashed #5f6368 !important;
+  outline-offset: -2px;
+}
+
+button.gcet-show-hidden {
+  all: unset;
+  position: fixed;
+  z-index: 2147483646;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  box-sizing: border-box;
+  width: 220px;
+  margin: 0;
+  padding: 6px 8px;
+  border: 1px solid #dadce0;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(60, 64, 67, 0.24);
+  cursor: pointer;
+  font: 14px/20px "Google Sans", Roboto, Arial, sans-serif;
+  color: #3c4043;
+}
+
+button.gcet-show-hidden:hover {
+  background: #e8eaed;
+}
+
+button.gcet-show-hidden:focus-visible {
+  outline: 2px solid #1a73e8;
+  outline-offset: 2px;
+}
+
+.gcet-show-hidden-box {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  box-sizing: border-box;
+  border: 2px solid #5f6368;
+  border-radius: 4px;
+  flex: 0 0 auto;
+}
+
+.gcet-show-hidden-box svg {
+  display: none;
+}
+
+button.gcet-show-hidden[aria-pressed="true"] .gcet-show-hidden-box {
+  background: #1a73e8;
+  border-color: #1a73e8;
+}
+
+button.gcet-show-hidden[aria-pressed="true"] .gcet-show-hidden-box svg {
+  display: block;
+}
+
+.gcet-show-hidden-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gcet-show-hidden-count {
+  margin-left: auto;
+  color: #5f6368;
+  font-size: 12px;
+  line-height: 16px;
+}
+
+button.gcet-hide-event-row {
+  position: fixed;
+  z-index: 2147483647;
+  box-sizing: border-box;
+  margin: 0;
+  border: 0;
+  background: #fff;
+  color: #202124;
+  text-align: left;
+  cursor: pointer;
+  font: 16px/24px "Google Sans", Roboto, Arial, sans-serif;
+  padding: 16px 16px 18px;
+  border-radius: 0 0 12px 12px;
+  box-shadow: 0 10px 18px rgba(60, 64, 67, 0.28);
+}
+
+button.gcet-hide-event-row:hover,
+button.gcet-hide-event-row:focus-visible {
+  background: #f1f3f4;
+  outline: none;
+}

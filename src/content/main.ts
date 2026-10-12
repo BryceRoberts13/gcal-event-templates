@@ -7,6 +7,7 @@ import {
 import { listTemplates } from "../store/template-store";
 import { DEFAULT_TEMPLATES, type EventTemplate } from "../types";
 import { mountTemplateCombobox } from "./combobox";
+import { startHiddenEvents } from "./hide-events";
 import { showExtensionRefreshBanner } from "./refresh-banner";
 import { watchForSaveTemplateControl } from "./save-as-template";
 
@@ -89,6 +90,7 @@ watchForEventTitleInputs((titleInput) => {
 });
 
 watchForSaveTemplateControl();
+startHiddenEvents();
 
 window.setInterval(() => {
   if (!isExtensionContextValid()) {
@@ -116,4 +118,6 @@ try {
   showExtensionRefreshBanner();
 }
 
-console.info("[gcal-event-templates] content script ready");
+const contentVersion = globalThis.chrome?.runtime?.getManifest?.().version ?? "dev";
+document.documentElement.dataset.gcetVersion = contentVersion;
+console.info(`[gcal-event-templates] content script ready (v${contentVersion})`);
