@@ -11,14 +11,25 @@ Searchable event templates inside Google Calendar's create-event title field —
 
 ## Load unpacked
 
+**Reload** on `chrome://extensions` only rereads the folder already chosen for that card. It does not download this branch, and it does not run the build. The card’s title and version come from `manifest.json` inside that folder. `package.json` stays at `0.1.0` because that is the npm package version; Chrome does not read it.
+
 ```bash
+git pull
 npm install
 npm run build
 ```
 
-Then open `chrome://extensions`, enable **Developer mode**, click **Load unpacked**, and select the `dist/` folder.
+`npm run build` prints the absolute `dist/` path and writes `dist/manifest.json` from the root `manifest.json`. On `chrome://extensions`, enable **Developer mode**, open the card’s details, and check the loaded path.
 
-The card must say **0.4.1** and “Hide individual events from the calendar grid, and show them again from the left sidebar.” Version **0.3.2** with the description “Searchable event templates in Google Calendar's create-event title field” does not include Hide event or Show hidden. Reload on that older card does nothing until `npm run build` has refreshed the same `dist/` folder and you load that folder (not the repo root).
+- That path must be this repo’s `dist/` folder (the path the build printed).
+- A path that is the repo root loads `manifest.json` next to the TypeScript sources. Chrome will not run `src/content/main.ts`.
+- A path that is an older `dist/` keeps the previous card, including **0.3.2** and “Searchable event templates in Google Calendar's create-event title field”.
+
+Click **Reload** on the card whose path is the new `dist/`. The card title must be **Google Calendar Event Templates 0.4.2**, the version **0.4.2**, and the description “Hide individual events from the calendar grid, and show them again from the left sidebar.” The toolbar popup reads the same version with `chrome.runtime.getManifest()`.
+
+If the card still says **0.3.2** after that build, remove the card and **Load unpacked** on `dist/` again.
+
+`npm run dev` rebuilds into that same `dist/` folder. Restart it after a pull so it reads the new `manifest.json`, then Reload the card that points at `dist/`.
 
 ## Features
 
@@ -33,8 +44,8 @@ The card must say **0.4.1** and “Hide individual events from the calendar grid
 ## Development
 
 ```bash
-npm run dev          # watch build (rebuild on save)
-npm run build        # production build to dist/
+npm run dev          # watch build into dist/ (restart after pulling manifest.json)
+npm run build        # production build to dist/; prints the folder Chrome must load
 npm test             # unit tests (search + store)
 npm run test:watch   # vitest in watch mode
 ```
