@@ -2,7 +2,7 @@
 
 Searchable event templates inside Google Calendar's create-event title field — a Chromium MV3 extension.
 
-**Repo:** `~/Desktop/Summer 2026/Coding Projects/gcal-event-templates`  
+**Repo:** `~/Desktop/web-extensions/gcal-event-templates`  
 **Design spec:** `SecondBrain/docs/superpowers/specs/2026-07-08-gcal-event-templates-extension-design.md`
 
 ## Status

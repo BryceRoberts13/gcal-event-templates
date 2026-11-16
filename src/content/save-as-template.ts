@@ -80,9 +80,16 @@ function showToast(message: string): void {
   window.setTimeout(() => toast.remove(), 2500);
 }
 
-function setSaveLabel(saveButton: HTMLElement, label: string): void {
+function setSaveLabel(
+  saveButton: HTMLElement,
+  label: string,
+  color?: string,
+): void {
   saveButton.textContent = label;
   saveButton.setAttribute("aria-label", label);
+  if (color !== undefined) {
+    saveButton.style.color = color;
+  }
 }
 
 async function updateMatchedTemplateFromForm(
@@ -182,7 +189,7 @@ function enterMatchedMode(saveButton: HTMLElement, template: EventTemplate): voi
     };
     labeledSaveButton = saveButton;
   }
-  setSaveLabel(saveButton, COMBINED_SAVE_LABEL);
+  setSaveLabel(saveButton, COMBINED_SAVE_LABEL, "#fff");
 }
 
 function leaveMatchedMode(): void {
@@ -190,7 +197,7 @@ function leaveMatchedMode(): void {
   saveClickBound?.removeEventListener("click", onSaveClickCapture, true);
   saveClickBound = null;
   if (labeledSaveButton && originalSaveLabel) {
-    setSaveLabel(labeledSaveButton, originalSaveLabel.text);
+    setSaveLabel(labeledSaveButton, originalSaveLabel.text, "");
     if (originalSaveLabel.aria == null) {
       labeledSaveButton.removeAttribute("aria-label");
     } else {

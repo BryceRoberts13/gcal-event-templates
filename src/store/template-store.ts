@@ -9,11 +9,9 @@ import { readPersistedStore, writePersistedStore } from "./storage";
 export async function loadTemplateStore(): Promise<TemplateStore> {
   const stored = await readPersistedStore();
 
-  if (!stored || stored.schemaVersion !== 1) {
-    return seedDefaultStore();
-  }
-
-  if (!Array.isArray(stored.templates) || stored.templates.length === 0) {
+  // Seed only when storage is missing/invalid. An empty templates array is a
+  // valid user choice (e.g. after deleting the last template).
+  if (!stored || stored.schemaVersion !== 1 || !Array.isArray(stored.templates)) {
     return seedDefaultStore();
   }
 

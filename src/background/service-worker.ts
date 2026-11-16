@@ -18,7 +18,8 @@ async function getStore(): Promise<TemplateStore> {
   const result = await storageArea().get(STORAGE_KEY);
   const stored = result[STORAGE_KEY] as TemplateStore | undefined;
 
-  if (!stored || stored.schemaVersion !== 1 || !Array.isArray(stored.templates) || stored.templates.length === 0) {
+  // Seed only when storage is missing/invalid. Empty templates[] is intentional.
+  if (!stored || stored.schemaVersion !== 1 || !Array.isArray(stored.templates)) {
     const seeded: TemplateStore = {
       schemaVersion: 1,
       templates: DEFAULT_TEMPLATES.map((template) => ({

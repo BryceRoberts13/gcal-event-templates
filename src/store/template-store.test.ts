@@ -1,8 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { TemplateStore } from "../types";
 import {
+  deleteTemplate,
   exportStoreJson,
   importStoreJson,
+  listTemplates,
   loadTemplateStore,
 } from "./template-store";
 
@@ -67,5 +69,43 @@ describe("exportStoreJson", () => {
 
     const loaded = await loadTemplateStore();
     expect(loaded).toEqual(validStore);
+  });
+});
+
+describe("deleteTemplate", () => {
+  it("removes a template and keeps the rest", async () => {
+    storage[STORAGE_KEY] = {
+      schemaVersion: 1,
+      templates: [
+        { id: "a", name: "A", updatedAt: 1 },
+        { id: "b", name: "B", updatedAt: 2 },
+      ],
+    };
+
+    await deleteTemplate("a");
+
+    const remaining = await listTemplates();
+    expect(remaining.map((t) => t.id)).toEqual(["b"]);
+  });
+
+  it("keeps an empty store after deleting the last template", async () => {
+    storage[STORAGE_KEY] = {
+      schemaVersion: 1,
+      templates: [{ id: "only", name: "Only", updatedAt: 1 }],
+    };
+
+    await deleteTemplate("only");
+
+    const remaining = await listTemplates();
+    expect(remaining).toEqual([]);
+  });
+});
+
+describe("loadTemplateStore", () => {
+  it("does not reseed when the stored templates array is empty", async () => {
+    storage[STORAGE_KEY] = { schemaVersion: 1, templates: [] };
+
+    const loaded = await loadTemplateStore();
+    expect(loaded).toEqual({ schemaVersion: 1, templates: [] });
   });
 });

@@ -75,6 +75,7 @@ describe("save match mode UI", () => {
     await reevaluateSaveMatch();
     expect(save.textContent?.trim()).toBe("Save & update template");
     expect(save.getAttribute("aria-label")).toBe("Save & update template");
+    expect(save.style.color).toBe("#fff");
   });
 
   it("restores Save when title does not match", async () => {
@@ -83,6 +84,7 @@ describe("save match mode UI", () => {
     titleInput.value = "Something else";
     await reevaluateSaveMatch();
     expect(save.textContent?.trim()).toBe("Save");
+    expect(save.style.color).toBe("");
   });
 
   it("re-evaluates match mode when the title blurs", async () => {
@@ -292,6 +294,29 @@ describe("save match mode UI", () => {
         description: "Leg day",
         location: "Z Center",
         colorId: "10",
+      }),
+    );
+  });
+
+  it("updates template color when the form exposes a new color", async () => {
+    document.body.innerHTML = `
+      <div role="dialog">
+        <input aria-label="Add title" value="Gym" />
+        <button type="button">Save</button>
+        <button type="button" aria-label="More actions">More</button>
+        <button type="button" aria-label="Event color Tomato" style="background-color: #d50000"></button>
+      </div>
+    `;
+    const save = document.querySelector("button") as HTMLButtonElement;
+
+    await reevaluateSaveMatch();
+    save.click();
+    await vi.waitFor(() => expect(upsertTemplate).toHaveBeenCalled());
+
+    expect(upsertTemplate).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        id: "gym",
+        colorId: "11",
       }),
     );
   });

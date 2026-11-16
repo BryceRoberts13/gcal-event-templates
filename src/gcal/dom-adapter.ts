@@ -1,5 +1,10 @@
 import type { EventTemplate, GcalColorId } from "../types";
-import { setContentEditableText, setInputValue, setTextareaValue } from "./dom-utils";
+import {
+  readContentEditableText,
+  setContentEditableText,
+  setInputValue,
+  setTextareaValue,
+} from "./dom-utils";
 
 const TITLE_LABELS = [
   "Add title",
@@ -28,6 +33,106 @@ const COLOR_NAMES: Record<GcalColorId, string> = {
 const COLOR_NAME_TO_ID = Object.fromEntries(
   Object.entries(COLOR_NAMES).map(([id, name]) => [name.toLowerCase(), id as GcalColorId]),
 ) as Record<string, GcalColorId>;
+
+/** Classic + modern GCal palette hexes (lowercase, no #) keyed by color id. */
+const COLOR_HEX_TO_ID: Record<string, GcalColorId> = {
+  // Classic API event colors
+  a4bdfc: "1",
+  "7ae7bf": "2",
+  dbadff: "3",
+  ff887c: "4",
+  fbd75b: "5",
+  ffb878: "6",
+  "46d6db": "7",
+  e1e1e1: "8",
+  "5484ed": "9",
+  "51b749": "10",
+  dc2127: "11",
+  // Modern Material palette used in the web UI chips
+  "7986cb": "1",
+  "33b679": "2",
+  "8e24aa": "3",
+  e67c73: "4",
+  f6bf26: "5",
+  f4511e: "6",
+  "039be5": "7",
+  "616161": "8",
+  "3f51b5": "9",
+  "0b8043": "10",
+  d50000: "11",
+};
+
+function colorIdFromLabel(label: string): GcalColorId | undefined {
+  const lower = label.toLowerCase();
+  for (const [name, id] of Object.entries(COLOR_NAME_TO_ID)) {
+    if (lower.includes(name)) {
+      return id;
+    }
+  }
+  return undefined;
+}
+
+function normalizeHex(value: string): string | null {
+  const hex = value.trim().replace(/^#/, "").toLowerCase();
+  if (/^[0-9a-f]{6}$/.test(hex)) {
+    return hex;
+  }
+  if (/^[0-9a-f]{3}$/.test(hex)) {
+    return hex
+      .split("")
+      .map((ch) => ch + ch)
+      .join("");
+  }
+  return null;
+}
+
+function rgbToHex(r: number, g: number, b: number): string {
+  return [r, g, b]
+    .map((n) => Math.max(0, Math.min(255, n)).toString(16).padStart(2, "0"))
+    .join("");
+}
+
+function colorIdFromCssColor(value: string): GcalColorId | undefined {
+  const trimmed = value.trim().toLowerCase();
+  const hex = normalizeHex(trimmed);
+  if (hex && hex in COLOR_HEX_TO_ID) {
+    return COLOR_HEX_TO_ID[hex];
+  }
+  const rgb = trimmed.match(/^rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/);
+  if (rgb) {
+    const asHex = rgbToHex(Number(rgb[1]), Number(rgb[2]), Number(rgb[3]));
+    return COLOR_HEX_TO_ID[asHex];
+  }
+  return undefined;
+}
+
+function colorIdFromElementStyles(el: HTMLElement): GcalColorId | undefined {
+  const inline = el.getAttribute("style") ?? "";
+  const bgMatch = inline.match(/background(?:-color)?\s*:\s*([^;]+)/i);
+  if (bgMatch) {
+    const fromInline = colorIdFromCssColor(bgMatch[1]);
+    if (fromInline) {
+      return fromInline;
+    }
+  }
+  const computed = typeof window.getComputedStyle === "function" ? window.getComputedStyle(el) : null;
+  if (computed) {
+    const fromComputed = colorIdFromCssColor(computed.backgroundColor);
+    if (fromComputed) {
+      return fromComputed;
+    }
+  }
+  for (const child of Array.from(el.querySelectorAll("[style]"))) {
+    if (!(child instanceof HTMLElement)) {
+      continue;
+    }
+    const fromChild = colorIdFromElementStyles(child);
+    if (fromChild) {
+      return fromChild;
+    }
+  }
+  return undefined;
+}
 
 export function isTitleInput(element: Element | null): element is HTMLInputElement {
   if (!(element instanceof HTMLInputElement)) {
@@ -114,6 +219,15 @@ function setDescription(
   setContentEditableText(field, value);
 }
 
+function isColorPickerTrigger(el: HTMLElement): boolean {
+  const label = (el.getAttribute("aria-label") ?? "").toLowerCase();
+  return (
+    label.includes("event color") ||
+    label.includes("calendar color") ||
+    /^color$/i.test(label.trim())
+  );
+}
+
 function findColorSwatch(
   root: ParentNode,
   colorId: GcalColorId,
@@ -125,14 +239,14 @@ function findColorSwatch(
     `[data-colorid="${colorId}"]`,
     `div[role="menuitemradio"][aria-label="${name}"]`,
     `button[aria-label="${name}"]`,
+    `[role="option"][aria-label="${name}"]`,
     `[aria-label="${name}"]`,
-    `[aria-label*="${name}" i]`,
   ];
 
   for (const selector of selectors) {
     try {
       const match = root.querySelector(selector);
-      if (match instanceof HTMLElement) {
+      if (match instanceof HTMLElement && !isColorPickerTrigger(match)) {
         return match;
       }
     } catch {
@@ -145,7 +259,7 @@ function findColorSwatch(
     'button, [role="button"], [role="menuitemradio"], [role="option"], [role="menuitem"]',
   );
   for (const node of candidates) {
-    if (!(node instanceof HTMLElement)) {
+    if (!(node instanceof HTMLElement) || isColorPickerTrigger(node)) {
       continue;
     }
     const label = (node.getAttribute("aria-label") ?? node.textContent ?? "")
@@ -273,7 +387,7 @@ function readFieldText(field: HTMLTextAreaElement | HTMLElement | null): string 
   if (field instanceof HTMLTextAreaElement || field instanceof HTMLInputElement) {
     return field.value.trim();
   }
-  return (field.innerText || field.textContent || "").trim();
+  return readContentEditableText(field).trim();
 }
 
 export function extractTemplateFromSurface(
@@ -284,8 +398,12 @@ export function extractTemplateFromSurface(
   const location = findInputByLabels(surface, LOCATION_LABELS);
 
   const pressed =
-    surface.querySelector("[data-color-id][aria-pressed='true'], [data-color-index][aria-pressed='true'], [aria-checked='true']") ??
-    document.querySelector("[data-color-id][aria-pressed='true'], [data-color-index][aria-pressed='true'], [aria-checked='true']");
+    surface.querySelector(
+      "[data-color-id][aria-pressed='true'], [data-color-index][aria-pressed='true'], [role='menuitemradio'][aria-checked='true'], [role='option'][aria-selected='true'], [aria-checked='true']",
+    ) ??
+    document.querySelector(
+      "[data-color-id][aria-pressed='true'], [data-color-index][aria-pressed='true'], [role='menuitemradio'][aria-checked='true'], [role='option'][aria-selected='true'], [aria-checked='true']",
+    );
 
   let colorId: GcalColorId | undefined;
   if (pressed instanceof HTMLElement) {
@@ -296,13 +414,18 @@ export function extractTemplateFromSurface(
     if (idAttr && idAttr in COLOR_NAMES) {
       colorId = idAttr as GcalColorId;
     } else {
-      const label = (pressed.getAttribute("aria-label") ?? "").toLowerCase();
-      for (const [name, id] of Object.entries(COLOR_NAME_TO_ID)) {
-        if (label.includes(name)) {
-          colorId = id;
-          break;
-        }
-      }
+      colorId = colorIdFromLabel(pressed.getAttribute("aria-label") ?? pressed.textContent ?? "");
+    }
+  }
+
+  if (!colorId) {
+    const colorButton =
+      findColorPickerButton(surface) ?? findColorPickerButton(document);
+    if (colorButton) {
+      colorId =
+        colorIdFromLabel(colorButton.getAttribute("aria-label") ?? "") ??
+        colorIdFromLabel(colorButton.getAttribute("title") ?? "") ??
+        colorIdFromElementStyles(colorButton);
     }
   }
 
