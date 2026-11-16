@@ -6,26 +6,35 @@ import {
   importStoreJson,
   resetToDefaultTemplates,
 } from "../store/template-store";
-import type { EventTemplate, GcalColorId } from "../types";
+import { STORAGE_KEY } from "../store/storage";
+import { isGcalColorId } from "../store/validate-store";
+import type { EventTemplate } from "../types";
 
-const listElement = document.getElementById("template-list") as HTMLUListElement;
-const emptyState = document.getElementById("empty-state") as HTMLParagraphElement;
-const editorOverlay = document.getElementById("editor-overlay") as HTMLDivElement;
-const templateForm = document.getElementById("template-form") as HTMLFormElement;
-const addBtn = document.getElementById("add-template") as HTMLButtonElement;
-const exportBtn = document.getElementById("export-json") as HTMLButtonElement;
-const importBtn = document.getElementById("import-json") as HTMLButtonElement;
-const resetBtn = document.getElementById("reset-defaults") as HTMLButtonElement;
-const importFileInput = document.getElementById("import-file") as HTMLInputElement;
-const cancelBtn = document.getElementById("cancel-edit") as HTMLButtonElement;
+function getRequiredElement<T extends HTMLElement>(id: string): T {
+  const element = document.getElementById(id);
+  if (!element) {
+    throw new Error(`Options page is missing #${id}`);
+  }
+  return element as T;
+}
 
-// Form fields
-const fieldId = document.getElementById("field-id") as HTMLInputElement;
-const fieldName = document.getElementById("field-name") as HTMLInputElement;
-const fieldKeywords = document.getElementById("field-keywords") as HTMLInputElement;
-const fieldDescription = document.getElementById("field-description") as HTMLTextAreaElement;
-const fieldLocation = document.getElementById("field-location") as HTMLInputElement;
-const fieldColor = document.getElementById("field-color") as HTMLSelectElement;
+const listElement = getRequiredElement<HTMLUListElement>("template-list");
+const emptyState = getRequiredElement<HTMLParagraphElement>("empty-state");
+const editorOverlay = getRequiredElement<HTMLDivElement>("editor-overlay");
+const templateForm = getRequiredElement<HTMLFormElement>("template-form");
+const addBtn = getRequiredElement<HTMLButtonElement>("add-template");
+const exportBtn = getRequiredElement<HTMLButtonElement>("export-json");
+const importBtn = getRequiredElement<HTMLButtonElement>("import-json");
+const resetBtn = getRequiredElement<HTMLButtonElement>("reset-defaults");
+const importFileInput = getRequiredElement<HTMLInputElement>("import-file");
+const cancelBtn = getRequiredElement<HTMLButtonElement>("cancel-edit");
+
+const fieldId = getRequiredElement<HTMLInputElement>("field-id");
+const fieldName = getRequiredElement<HTMLInputElement>("field-name");
+const fieldKeywords = getRequiredElement<HTMLInputElement>("field-keywords");
+const fieldDescription = getRequiredElement<HTMLTextAreaElement>("field-description");
+const fieldLocation = getRequiredElement<HTMLInputElement>("field-location");
+const fieldColor = getRequiredElement<HTMLSelectElement>("field-color");
 
 async function renderList(): Promise<void> {
   const templates = await listTemplates();
@@ -111,7 +120,7 @@ templateForm.onsubmit = async (e) => {
     keywords: keywords.length > 0 ? keywords : undefined,
     description: fieldDescription.value || undefined,
     location: fieldLocation.value || undefined,
-    colorId: (fieldColor.value as GcalColorId) || undefined,
+    colorId: isGcalColorId(fieldColor.value) ? fieldColor.value : undefined,
     updatedAt: Date.now(),
   };
 
@@ -160,11 +169,23 @@ importFileInput.onchange = async (e) => {
       renderList();
       alert("Templates imported successfully!");
     } catch (err) {
-      alert("Error importing templates: " + (err instanceof Error ? err.message : "Invalid format"));
+      const message = err instanceof Error ? err.message : "Invalid format";
+      alert(`Error importing templates: ${message}`);
     }
     importFileInput.value = "";
   };
   reader.readAsText(file);
 };
+
+try {
+  chrome.storage?.onChanged.addListener((changes, area) => {
+    if ((area !== "sync" && area !== "local") || !changes[STORAGE_KEY]) {
+      return;
+    }
+    void renderList();
+  });
+} catch {
+  // Options opened outside the extension has no storage events.
+}
 
 void renderList();

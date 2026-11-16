@@ -4,14 +4,17 @@ import {
   type EventTemplate,
   type TemplateStore,
 } from "../types";
-import { readPersistedStore, writePersistedStore } from "./storage";
+import { applyStoreMutation, type StoreMutation } from "./store-mutation";
+import { mutateStoreViaMessaging, readPersistedStore, writePersistedStore } from "./storage";
+import { isExtensionContextInvalidated } from "./extension-context";
+import { parseTemplateStoreJson } from "./validate-store";
 
 export async function loadTemplateStore(): Promise<TemplateStore> {
   const stored = await readPersistedStore();
 
   // Seed only when storage is missing/invalid. An empty templates array is a
   // valid user choice (e.g. after deleting the last template).
-  if (!stored || stored.schemaVersion !== 1 || !Array.isArray(stored.templates)) {
+  if (stored?.schemaVersion !== 1 || !Array.isArray(stored?.templates)) {
     return seedDefaultStore();
   }
 
@@ -39,24 +42,27 @@ export async function listTemplates(): Promise<EventTemplate[]> {
   return store.templates;
 }
 
-export async function upsertTemplate(template: EventTemplate): Promise<void> {
-  const store = await loadTemplateStore();
-  const index = store.templates.findIndex((t) => t.id === template.id);
-  const next = { ...template, updatedAt: Date.now() };
-
-  if (index >= 0) {
-    store.templates[index] = next;
-  } else {
-    store.templates.push(next);
+async function commitMutation(mutation: StoreMutation): Promise<void> {
+  try {
+    if (await mutateStoreViaMessaging(mutation)) {
+      return;
+    }
+  } catch (error) {
+    if (isExtensionContextInvalidated(error)) {
+      throw error;
+    }
   }
 
-  await saveTemplateStore(store);
+  const store = await loadTemplateStore();
+  await saveTemplateStore(applyStoreMutation(store, mutation));
+}
+
+export async function upsertTemplate(template: EventTemplate): Promise<void> {
+  await commitMutation({ op: "upsert", template });
 }
 
 export async function deleteTemplate(id: string): Promise<void> {
-  const store = await loadTemplateStore();
-  store.templates = store.templates.filter((t) => t.id !== id);
-  await saveTemplateStore(store);
+  await commitMutation({ op: "delete", id });
 }
 
 export function createEmptyStore(): TemplateStore {
@@ -69,11 +75,8 @@ export async function exportStoreJson(): Promise<string> {
 }
 
 export async function importStoreJson(raw: string): Promise<void> {
-  const parsed = JSON.parse(raw) as TemplateStore;
-  if (parsed.schemaVersion !== 1 || !Array.isArray(parsed.templates)) {
-    throw new Error("Invalid template store JSON");
-  }
-  await saveTemplateStore(parsed);
+  const parsed = parseTemplateStoreJson(raw);
+  await commitMutation({ op: "replace", store: parsed });
 }
 
 export async function resetToDefaultTemplates(): Promise<TemplateStore> {

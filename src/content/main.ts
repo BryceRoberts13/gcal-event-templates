@@ -1,4 +1,5 @@
 import { applyTemplate } from "../gcal/dom-adapter";
+import { CONTEXT_CHECK_INTERVAL_MS, setValidatedInterval } from "../poll";
 import { watchForEventTitleInputs } from "../gcal/popover-detector";
 import {
   isExtensionContextInvalidated,
@@ -8,6 +9,7 @@ import { listTemplates } from "../store/template-store";
 import { DEFAULT_TEMPLATES, type EventTemplate } from "../types";
 import { mountTemplateCombobox } from "./combobox";
 import { showExtensionRefreshBanner } from "./refresh-banner";
+import { startHiddenEvents } from "./hide-events";
 import {
   reevaluateSaveMatch,
   watchForSaveTemplateControl,
@@ -93,12 +95,13 @@ watchForEventTitleInputs((titleInput) => {
 });
 
 watchForSaveTemplateControl();
+startHiddenEvents();
 
-window.setInterval(() => {
+setValidatedInterval(() => {
   if (!isExtensionContextValid()) {
     showExtensionRefreshBanner();
   }
-}, 3000);
+}, CONTEXT_CHECK_INTERVAL_MS);
 
 const storage = globalThis.chrome?.storage;
 if (storage?.onChanged) {

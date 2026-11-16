@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { listTemplates, upsertTemplate } from "../store/template-store";
 import { watchForSaveTemplateControl, reevaluateSaveMatch } from "./save-as-template";
+import { queryExtension, queryExtensionAll } from "./shadow-host";
 
 vi.mock("../store/template-store", async () => {
   const actual = await vi.importActual<typeof import("../store/template-store")>(
@@ -161,12 +162,12 @@ describe("save match mode UI", () => {
 
     titleInput.value = "Gym";
     titleInput.dispatchEvent(new Event("blur"));
-    (document.querySelector(".gcet-save-caret") as HTMLButtonElement).click();
+    (queryExtension(".gcet-save-caret") as HTMLButtonElement).click();
 
-    expect(document.getElementById("gcet-save-menu")).toBeNull();
+    expect(queryExtension("#gcet-save-menu")).toBeNull();
     resolveBlur([gymTemplate]);
     await vi.waitFor(() => {
-      expect(document.querySelector('[data-gcet-action="save-only"]')).not.toBeNull();
+      expect(queryExtension('[data-gcet-action="save-only"]')).not.toBeNull();
     });
   });
 
@@ -178,7 +179,7 @@ describe("save match mode UI", () => {
       </div>
     `;
     await vi.waitFor(() => {
-      expect(document.querySelector(".gcet-save-caret")).not.toBeNull();
+      expect(queryExtension(".gcet-save-caret")).not.toBeNull();
     });
     const dialog = document.querySelector('[role="dialog"]') as HTMLElement;
     const save = document.createElement("button");
@@ -188,11 +189,11 @@ describe("save match mode UI", () => {
 
     await vi.waitFor(() => {
       expect(save.textContent?.trim()).toBe("Save & update template");
-      expect(document.querySelectorAll(".gcet-save-caret")).toHaveLength(1);
+      expect(queryExtensionAll(".gcet-save-caret")).toHaveLength(1);
     });
-    (document.querySelector(".gcet-save-caret") as HTMLButtonElement).click();
+    (queryExtension(".gcet-save-caret") as HTMLButtonElement).click();
     await vi.waitFor(() => {
-      expect(document.querySelector('[data-gcet-action="save-only"]')).not.toBeNull();
+      expect(queryExtension('[data-gcet-action="save-only"]')).not.toBeNull();
     });
   });
 
@@ -200,7 +201,7 @@ describe("save match mode UI", () => {
     const { save } = mountEditor("Gym");
     await reevaluateSaveMatch();
     await vi.waitFor(() => {
-      expect(document.querySelector(".gcet-save-caret")).not.toBeNull();
+      expect(queryExtension(".gcet-save-caret")).not.toBeNull();
     });
 
     const replacement = document.createElement("button");
@@ -241,19 +242,17 @@ describe("save match mode UI", () => {
     save.addEventListener("click", nativeSave);
     await reevaluateSaveMatch();
     await vi.waitFor(() => {
-      expect(document.querySelector(".gcet-save-caret")).not.toBeNull();
+      expect(queryExtension(".gcet-save-caret")).not.toBeNull();
     });
 
-    (document.querySelector(".gcet-save-caret") as HTMLButtonElement).click();
+    (queryExtension(".gcet-save-caret") as HTMLButtonElement).click();
     await vi.waitFor(() => {
-      expect(document.querySelector('[data-gcet-action="save-only"]')).not.toBeNull();
+      expect(queryExtension('[data-gcet-action="save-only"]')).not.toBeNull();
     });
-    const saveOnly = document.querySelector<HTMLButtonElement>(
-      '[data-gcet-action="save-only"]',
-    );
+    const saveOnly = queryExtension<HTMLButtonElement>('[data-gcet-action="save-only"]');
     expect(saveOnly?.textContent).toBe("Save only");
 
-    saveOnly?.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, cancelable: true }));
+    saveOnly?.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, cancelable: true, composed: true }));
     expect(nativeSave).toHaveBeenCalledOnce();
   });
 
@@ -362,7 +361,7 @@ describe("save match mode UI", () => {
     stop();
 
     await vi.waitFor(() => expect(nativeHandler).toHaveBeenCalledOnce());
-    expect(document.getElementById("gcet-toast")?.textContent).toBe(
+    expect(queryExtension("#gcet-toast")?.textContent).toBe(
       "Updated template “Gym”",
     );
     await vi.waitFor(() => expect(save.getAttribute("data-gcet-native-save")).toBeNull());
@@ -371,19 +370,17 @@ describe("save match mode UI", () => {
   it("clears the native Save bypass after Save only when unbound", async () => {
     const { save } = mountEditor("Gym");
     await reevaluateSaveMatch();
-    (document.querySelector(".gcet-save-caret") as HTMLButtonElement).click();
+    (queryExtension(".gcet-save-caret") as HTMLButtonElement).click();
     await vi.waitFor(() => {
-      expect(document.querySelector('[data-gcet-action="save-only"]')).not.toBeNull();
+      expect(queryExtension('[data-gcet-action="save-only"]')).not.toBeNull();
     });
-    const saveOnly = document.querySelector<HTMLButtonElement>(
-      '[data-gcet-action="save-only"]',
-    );
+    const saveOnly = queryExtension<HTMLButtonElement>('[data-gcet-action="save-only"]');
     vi.spyOn(save, "click").mockImplementation(() => {
       stop();
       HTMLButtonElement.prototype.click.call(save);
     });
 
-    saveOnly?.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, cancelable: true }));
+    saveOnly?.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, cancelable: true, composed: true }));
 
     expect(save.getAttribute("data-gcet-native-save")).toBeNull();
   });

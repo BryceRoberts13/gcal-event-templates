@@ -1,10 +1,13 @@
+import { mountOverlay, queryExtension, removeOverlay } from "./shadow-host";
+
 const BANNER_ID = "gcet-refresh-banner";
 
 export function showExtensionRefreshBanner(): void {
-  if (document.getElementById(BANNER_ID)) {
+  if (queryExtension(`#${BANNER_ID}`)) {
     return;
   }
 
+  const overlay = mountOverlay(BANNER_ID, "2147483647");
   const banner = document.createElement("div");
   banner.id = BANNER_ID;
   banner.className = "gcet-refresh-banner";
@@ -30,9 +33,10 @@ export function showExtensionRefreshBanner(): void {
   dismiss.setAttribute("aria-label", "Dismiss");
   dismiss.textContent = "×";
   dismiss.addEventListener("click", () => {
-    banner.remove();
+    removeOverlay(BANNER_ID);
   });
   banner.appendChild(dismiss);
 
-  document.body.appendChild(banner);
+  overlay.root.appendChild(banner);
+  document.body.appendChild(overlay.host);
 }

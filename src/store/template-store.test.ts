@@ -12,7 +12,9 @@ const STORAGE_KEY = "templateStore";
 const storage: Record<string, unknown> = {};
 
 beforeEach(() => {
-  Object.keys(storage).forEach((k) => delete storage[k]);
+  for (const key of Object.keys(storage)) {
+    delete storage[key];
+  }
   const area = {
     get: vi.fn(async (key: string) => ({ [key]: storage[key] })),
     set: vi.fn(async (obj: Record<string, unknown>) =>
@@ -98,6 +100,39 @@ describe("deleteTemplate", () => {
 
     const remaining = await listTemplates();
     expect(remaining).toEqual([]);
+  });
+});
+
+describe("importStoreJson validation", () => {
+  it("rejects a template with no name", async () => {
+    const invalid = JSON.stringify({
+      schemaVersion: 1,
+      templates: [{ id: "x", name: "  ", updatedAt: 1 }],
+    });
+    await expect(importStoreJson(invalid)).rejects.toThrow("bad name");
+  });
+
+  it("rejects an unknown color and duplicate ids", async () => {
+    const badColor = JSON.stringify({
+      schemaVersion: 1,
+      templates: [{ id: "x", name: "X", updatedAt: 1, colorId: "99" }],
+    });
+    await expect(importStoreJson(badColor)).rejects.toThrow("bad colorId");
+
+    const dupes = JSON.stringify({
+      schemaVersion: 1,
+      templates: [
+        { id: "x", name: "One", updatedAt: 1 },
+        { id: "x", name: "Two", updatedAt: 2 },
+      ],
+    });
+    await expect(importStoreJson(dupes)).rejects.toThrow("duplicate id");
+  });
+
+  it("rejects a payload over the size cap", async () => {
+    await expect(importStoreJson(`{${" ".repeat(1_000_000)}}`)).rejects.toThrow(
+      "Invalid template store JSON",
+    );
   });
 });
 

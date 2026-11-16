@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { EventTemplate } from "../types";
 import { mountTemplateCombobox } from "./combobox";
+import { queryExtension } from "./shadow-host";
 
 const templates: EventTemplate[] = [
   { id: "1", name: "Focus block", updatedAt: 0 },
@@ -21,7 +22,7 @@ describe("mountTemplateCombobox", () => {
     mountTemplateCombobox(input, templates, vi.fn());
     input.dispatchEvent(new Event("focus"));
 
-    const dropdown = document.querySelector(".gcet-dropdown");
+    const dropdown = queryExtension(".gcet-dropdown");
     expect(dropdown).not.toBeNull();
     expect(dropdown!.querySelectorAll(".gcet-dropdown-item")).toHaveLength(2);
 
@@ -37,7 +38,7 @@ describe("mountTemplateCombobox", () => {
     mountTemplateCombobox(input, templates, vi.fn());
     input.dispatchEvent(new Event("focus"));
 
-    const dropdown = document.querySelector(".gcet-dropdown");
+    const dropdown = queryExtension(".gcet-dropdown");
     expect(dropdown!.querySelectorAll(".gcet-dropdown-item")).toHaveLength(2);
   });
 
@@ -56,8 +57,8 @@ describe("mountTemplateCombobox", () => {
     mountTemplateCombobox(input, templates, onSelect);
     input.dispatchEvent(new Event("focus"));
 
-    const item = document.querySelector(".gcet-dropdown-item") as HTMLElement;
-    item.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, cancelable: true }));
+    const item = queryExtension(".gcet-dropdown-item") as HTMLElement;
+    item.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, cancelable: true, composed: true }));
 
     expect(onSelect).toHaveBeenCalledWith(templates[0]);
   });
@@ -70,8 +71,8 @@ describe("mountTemplateCombobox", () => {
     mountTemplateCombobox(input, templates, onSelect);
     input.dispatchEvent(new Event("focus"));
 
-    const item = document.querySelector(".gcet-dropdown-item") as HTMLElement;
-    item.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, cancelable: true }));
+    const item = queryExtension(".gcet-dropdown-item") as HTMLElement;
+    item.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, cancelable: true, composed: true }));
 
     expect(onSelect).toHaveBeenCalledWith(templates[0]);
     expect(documentSpy).not.toHaveBeenCalled();
@@ -83,7 +84,7 @@ describe("mountTemplateCombobox", () => {
     mountTemplateCombobox(input, templates, vi.fn());
     input.dispatchEvent(new Event("focus"));
 
-    const manage = document.querySelector(".gcet-dropdown-manage");
+    const manage = queryExtension(".gcet-dropdown-manage");
     expect(manage).not.toBeNull();
     expect(manage!.textContent).toContain("Manage templates");
   });

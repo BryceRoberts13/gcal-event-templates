@@ -1,4 +1,11 @@
+import {
+  COLOR_PICK_INITIAL_DELAY_MS,
+  COLOR_PICK_MAX_ATTEMPTS,
+  COLOR_PICK_RETRY_DELAY_MS,
+  setValidatedTimeout,
+} from "../poll";
 import type { EventTemplate, GcalColorId } from "../types";
+import { isGcalColorId } from "../store/validate-store";
 import {
   readContentEditableText,
   setContentEditableText,
@@ -312,10 +319,32 @@ function clickSwatch(swatch: HTMLElement): void {
   swatch.setAttribute("aria-checked", "true");
 }
 
+let colorWatch: { observer: MutationObserver; timer: number } | null = null;
+
+function stopColorWatch(): void {
+  colorWatch?.observer.disconnect();
+  if (colorWatch) {
+    window.clearTimeout(colorWatch.timer);
+  }
+  colorWatch = null;
+}
+
 function applyColor(root: ParentNode, colorId: GcalColorId): void {
-  const immediate = findColorSwatch(root, colorId) ?? findColorSwatch(document, colorId);
-  if (immediate) {
-    clickSwatch(immediate);
+  if (!isGcalColorId(colorId)) {
+    return;
+  }
+
+  const pick = (): boolean => {
+    const palette = findColorSwatch(document, colorId) ?? findColorSwatch(root, colorId);
+    if (!palette) {
+      return false;
+    }
+    clickSwatch(palette);
+    return true;
+  };
+
+  if (pick()) {
+    stopColorWatch();
     return;
   }
 
@@ -327,27 +356,39 @@ function applyColor(root: ParentNode, colorId: GcalColorId): void {
   }
 
   colorButton.click();
+  if (pick()) {
+    stopColorWatch();
+    return;
+  }
 
-  const tryPick = (attempt: number): void => {
-    const palette =
-      findColorSwatch(document, colorId) ??
-      findColorSwatch(root, colorId);
-    if (palette) {
-      clickSwatch(palette);
-      return;
+  stopColorWatch();
+  const observer = new MutationObserver(() => {
+    if (pick()) {
+      stopColorWatch();
     }
-    if (attempt < 8) {
-      window.setTimeout(() => tryPick(attempt + 1), 60);
-      return;
+  });
+  observer.observe(document.documentElement, {
+    childList: true,
+    subtree: true,
+    attributes: true,
+    attributeFilter: ["aria-label", "data-color-id", "style"],
+  });
+  const deadline =
+    COLOR_PICK_INITIAL_DELAY_MS + COLOR_PICK_RETRY_DELAY_MS * COLOR_PICK_MAX_ATTEMPTS;
+  const timer = setValidatedTimeout(() => {
+    observer.disconnect();
+    if (colorWatch?.observer === observer) {
+      colorWatch = null;
     }
-    console.debug(
-      "[gcal-event-templates] color swatch not found for",
-      colorId,
-      COLOR_NAMES[colorId],
-    );
-  };
-
-  window.setTimeout(() => tryPick(0), 40);
+    if (!pick()) {
+      console.debug(
+        "[gcal-event-templates] color swatch not found for",
+        colorId,
+        COLOR_NAMES[colorId],
+      );
+    }
+  }, deadline);
+  colorWatch = { observer, timer };
 }
 
 export function applyTemplate(

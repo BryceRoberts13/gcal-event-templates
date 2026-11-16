@@ -1,15 +1,19 @@
 {
   "name": "gcal-event-templates",
-  "version": "0.3.2",
+  "version": "0.4.0",
   "private": true,
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "lint": "biome lint .",
+    "format": "biome format --write .",
+    "check": "biome check ."
   },
   "devDependencies": {
+    "@biomejs/biome": "^2.6.8",
     "@crxjs/vite-plugin": "^2.0.0",
     "@types/chrome": "^0.0.268",
     "happy-dom": "^20.10.6",

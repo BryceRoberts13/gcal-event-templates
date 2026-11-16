@@ -1,13 +1,24 @@
 {
   "manifest_version": 3,
   "name": "Google Calendar Event Templates",
-  "version": "0.3.2",
-  "description": "Searchable event templates in Google Calendar's create-event title field",
+  "version": "0.4.0",
+  "description": "Event templates, plus hide individual events from the grid in this browser",
   "permissions": ["storage", "tabs"],
   "host_permissions": ["https://calendar.google.com/*"],
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
   "action": {
     "default_title": "Event Templates",
-    "default_popup": "src/popup/popup.html"
+    "default_popup": "src/popup/popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png",
+      "48": "icons/icon48.png"
+    }
   },
   "background": {
     "service_worker": "src/background/service-worker.ts",

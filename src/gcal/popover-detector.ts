@@ -1,3 +1,4 @@
+import { DIALOG_SCAN_INTERVAL_MS, setValidatedInterval } from "../poll";
 import { isTitleInput } from "./dom-adapter";
 
 export type TitleInputHandler = (input: HTMLInputElement) => void;
@@ -41,7 +42,7 @@ export function watchForEventTitleInputs(onTitleInput: TitleInputHandler): () =>
   });
 
   // GCal is a SPA; re-scan periodically for late-mounted title fields.
-  const intervalId = window.setInterval(() => scan(document), 1500);
+  const intervalId = setValidatedInterval(() => scan(document), DIALOG_SCAN_INTERVAL_MS);
 
   return () => {
     observer.disconnect();

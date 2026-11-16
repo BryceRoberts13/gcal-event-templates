@@ -1,6 +1,7 @@
 import { searchTemplates } from "../search/template-search";
 import { openTemplateManager } from "../open-options";
 import type { EventTemplate } from "../types";
+import { composedTarget, mountOverlay } from "./shadow-host";
 
 const DROPDOWN_CLASS = "gcet-dropdown";
 const ITEM_CLASS = "gcet-dropdown-item";
@@ -29,12 +30,14 @@ export function mountTemplateCombobox(
   }
   titleInput.dataset.gcetMounted = "true";
 
-  // Do NOT wrap GCal's input — React owns that tree. Overlay the dropdown on body.
+  // Do NOT wrap GCal's input. The list lives in a shadow root on body.
+  const overlay = mountOverlay("combobox", "2147483646");
   const dropdown = document.createElement("ul");
   dropdown.className = DROPDOWN_CLASS;
   dropdown.hidden = true;
   dropdown.setAttribute("role", "listbox");
-  document.body.appendChild(dropdown);
+  overlay.root.appendChild(dropdown);
+  document.body.appendChild(overlay.host);
 
   let activeIndex = -1;
 
@@ -113,7 +116,7 @@ export function mountTemplateCombobox(
    * capture the dialog closes before a template can be applied.
    */
   const shieldPage = (event: Event) => {
-    const target = event.target;
+    const target = composedTarget(event);
     if (!(target instanceof Node) || !dropdown.contains(target)) {
       return;
     }
@@ -234,6 +237,6 @@ export function mountTemplateCombobox(
     window.removeEventListener("pointerdown", shieldPage, true);
     window.removeEventListener("pointerup", shieldPage, true);
     delete titleInput.dataset.gcetMounted;
-    dropdown.remove();
+    overlay.host.remove();
   };
 }

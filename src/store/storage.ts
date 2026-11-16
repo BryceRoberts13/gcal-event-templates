@@ -1,9 +1,11 @@
+import { assertDelayMs, STORAGE_RETRY_DELAY_MS } from "../poll";
 import type { TemplateStore } from "../types";
 import {
   ExtensionContextInvalidatedError,
   isExtensionContextInvalidated,
   isExtensionContextValid,
 } from "./extension-context";
+import type { StoreMutation } from "./store-mutation";
 
 export const STORAGE_KEY = "templateStore";
 
@@ -50,7 +52,8 @@ function isCalendarContentPage(): boolean {
 }
 
 function delay(ms: number): Promise<void> {
-  return new Promise((resolve) => window.setTimeout(resolve, ms));
+  const wait = assertDelayMs(ms, "Storage retry");
+  return new Promise((resolve) => window.setTimeout(resolve, wait));
 }
 
 export async function loadStoreViaMessaging(): Promise<TemplateStore | null> {
@@ -82,7 +85,7 @@ export async function loadStoreViaMessaging(): Promise<TemplateStore | null> {
     }
 
     if (attempt < maxAttempts - 1) {
-      await delay(100);
+      await delay(STORAGE_RETRY_DELAY_MS);
     }
   }
 
@@ -114,6 +117,31 @@ export async function saveStoreViaMessaging(store: TemplateStore): Promise<boole
       throw new ExtensionContextInvalidatedError();
     }
     console.warn("[gcal-event-templates] messaging set-store failed:", error);
+  }
+  return false;
+}
+
+export async function mutateStoreViaMessaging(mutation: StoreMutation): Promise<boolean> {
+  if (!globalThis.chrome?.runtime?.sendMessage || !isExtensionContextValid()) {
+    return false;
+  }
+
+  try {
+    const response = (await chrome.runtime.sendMessage({
+      type: "gcet/mutate",
+      mutation,
+    })) as { ok: boolean; error?: string } | undefined;
+    if (response?.ok) {
+      return true;
+    }
+    if (response?.error) {
+      console.warn("[gcal-event-templates] mutate failed:", response.error);
+    }
+  } catch (error) {
+    if (isExtensionContextInvalidated(error) || !isExtensionContextValid()) {
+      throw new ExtensionContextInvalidatedError();
+    }
+    console.warn("[gcal-event-templates] messaging mutate failed:", error);
   }
   return false;
 }

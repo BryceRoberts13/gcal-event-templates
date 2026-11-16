@@ -65,3 +65,24 @@ export const DEFAULT_TEMPLATES: EventTemplate[] = [
     updatedAt: 0,
   },
 ];
+
+export interface HiddenEventRecord {
+  /** Google Calendar `data-eventid` when the chip exposes one. */
+  eventId: string | null;
+  /** Lowercased event title. */
+  title: string;
+  /** Lowercased date/time line from the event card. */
+  when: string;
+  /** Lowercased calendar name from the event card. */
+  calendar: string;
+  /** Lowercased chip aria-label captured when the event was hidden. */
+  ariaLabel: string;
+  hiddenAt: number;
+}
+
+export interface HiddenEventStore {
+  schemaVersion: 1;
+  /** When true, hidden events stay on the grid, dimmed, so they can be unhidden. */
+  showHidden: boolean;
+  events: HiddenEventRecord[];
+}

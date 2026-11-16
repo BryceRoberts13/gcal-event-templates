@@ -11,6 +11,8 @@ Searchable event templates inside Google Calendar's create-event title field —
 
 ## Load unpacked
 
+Load **`dist/`**, not this folder. The root `manifest.json` points at TypeScript sources. Chrome cannot run those files, which shows up as "Invalid script mime type" and "Service worker registration failed. Status code: 11".
+
 ```bash
 npm install
 npm run build
@@ -25,6 +27,8 @@ Then open `chrome://extensions`, enable **Developer mode**, click **Load unpacke
 - **Options page CRUD** — add, edit, delete, and reorder templates via `chrome://extensions` → Options
 - **Import / export JSON** — backup templates or move them between machines without sync
 - **Default templates** — ships with example templates on first install so the dropdown is usable immediately
+- **Hide event** — the event menu that contains Print and Duplicate gets **Hide event**. The event leaves the grid in this browser only
+- **Show hidden** — a checkbox under My calendars brings those events back, dimmed, so you can choose **Unhide event**
 
 ## Development
 
@@ -33,6 +37,8 @@ npm run dev          # watch build (rebuild on save)
 npm run build        # production build to dist/
 npm test             # unit tests (search + store)
 npm run test:watch   # vitest in watch mode
+npm run lint         # biome lint + format check
+npm run format       # biome write formatting
 ```
 
 ## Manual QA
@@ -59,7 +65,9 @@ Run through this checklist after changes or when Google Calendar updates its UI.
 ## Known limitations
 
 - **Color and description fields may not appear** in the quick-create mini popover depending on Google Calendar layout. When those fields are absent, the extension fills what it can find and skips the rest.
-- **DOM selectors are fragile** — Google Calendar UI changes can break field detection. If fill stops working after a GCal update, check `src/gcal/dom-adapter.ts` first.
+- **DOM selectors are fragile** — Google Calendar UI changes can break field detection. If fill stops working after a GCal update, check `src/gcal/dom-adapter.ts` first. Hide event looks for the open menu that contains Print and Duplicate. Show hidden is drawn on top of the left sidebar.
+- **Hiding is local to this browser.** It is stored in `chrome.storage.local` and does not change the event on Google Calendar.
+- **Recurring events follow Google's event id.** Hiding one chip hides every visible chip that shares that id.
 
 ## Selector maintenance
 
